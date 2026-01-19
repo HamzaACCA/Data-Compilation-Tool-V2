@@ -23,20 +23,27 @@ CACHE_TTL = 300  # 5 minutes cache
 background_tasks = {}
 task_lock = threading.Lock()
 
-# Import webview for native window
-try:
-    import webview
-    HAS_WEBVIEW = True
-except ImportError:
-    import webbrowser
-    HAS_WEBVIEW = False
+# Import webview for native window (optional - not used in web deployment)
+import os
+WEB_MODE = os.environ.get('RENDER') or os.environ.get('WEB_MODE')
+HAS_WEBVIEW = False
+if not WEB_MODE:
+    try:
+        import webview
+        HAS_WEBVIEW = True
+    except ImportError:
+        pass
 
 # Global reference to webview window
 webview_window = None
 is_maximized = False
 
 # Determine the base path
-if getattr(sys, 'frozen', False):
+if os.environ.get('RENDER'):
+    # Running on Render - use persistent disk
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    APP_DIR = '/var/data'
+elif getattr(sys, 'frozen', False):
     BASE_DIR = sys._MEIPASS
     EXE_DIR = os.path.dirname(sys.executable)
     APP_DIR = os.path.join(EXE_DIR, 'Data')

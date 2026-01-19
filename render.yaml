@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: data-compilation-tool
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn launcher:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: RENDER
+        value: true
+    disk:
+      name: data-storage
+      mountPath: /var/data
+      sizeGB: 1
