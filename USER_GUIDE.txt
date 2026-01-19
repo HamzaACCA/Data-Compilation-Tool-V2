@@ -1,0 +1,111 @@
+================================================================================
+               DATA COMPILATION TOOL - USER GUIDE
+                        Version 1.0
+================================================================================
+
+WELCOME!
+--------
+Thank you for using Data Compilation Tool. This software helps you automatically
+combine monthly Excel files and analyze data with a powerful dashboard.
+
+GETTING STARTED
+---------------
+1. Launch the application from:
+   - Desktop icon: "Data Compilation Tool"
+   - Start Menu: Programs > Data Compilation Tool
+
+2. Your default web browser will open automatically
+3. The application runs at: http://127.0.0.1:5000
+
+FEATURES
+--------
+
+1. UPLOAD & COMBINE FILES
+   - Click the upload area or drag & drop Excel files (.xlsx, .xls, .csv)
+   - Files are automatically combined with existing data
+   - Upload time: Less than 1 second!
+   - Maximum file size: 50 MB
+
+2. VIEW DASHBOARD
+   - Click "View Dashboard" button
+   - Select date range to filter data
+   - View statistics: Total records, districts, etc.
+   - See top 10 sales districts
+   - Download filtered data for specific periods
+
+3. DOWNLOAD DATA
+   - Click "Download Consolidated File" to get all data
+   - Click "Download Filtered Data" on dashboard for specific period
+   - Downloads in Excel format (.xlsx)
+
+4. RESET DATA
+   - Click "Reset Data" to clear all consolidated data
+   - Warning: This cannot be undone!
+
+DATA STORAGE
+------------
+All your data is stored locally on your computer at:
+C:\Users\YourUsername\AppData\Local\DataCompilationTool\
+
+Files:
+- consolidated_data.pkl (fast internal format)
+- consolidated_data.xlsx (Excel backup)
+- Uploaded files backed up in: uploads\ folder
+
+Note: This location is automatically chosen to ensure you have write permissions.
+
+REQUIREMENTS
+------------
+- Windows 10 or higher
+- 100 MB free disk space
+- Web browser (Chrome, Firefox, Edge, etc.)
+- No internet connection required (runs offline)
+
+COLUMN REQUIREMENTS
+-------------------
+All uploaded files must have these 152 columns in exact order:
+- Sales District
+- ActShpmtCmpletDate
+- External ID 1
+- External ID 2
+... (and 148 more columns)
+
+The software will verify column headers before combining files.
+
+TROUBLESHOOTING
+---------------
+
+Problem: Browser doesn't open automatically
+Solution: Manually open browser and go to http://127.0.0.1:5000
+
+Problem: Upload fails with "Column headers don't match"
+Solution: Ensure your Excel file has the same columns as previous files
+
+Problem: Application won't start
+Solution: Check if port 5000 is available, restart the application
+
+Problem: Slow performance with large files
+Solution: The software handles files up to 50MB. For larger datasets,
+          split into smaller monthly files.
+
+KEYBOARD SHORTCUTS
+------------------
+- Ctrl + F5: Hard refresh the page
+- Ctrl + C: Stop the server (in console window)
+
+SUPPORT
+-------
+For support, please contact:
+Email: support@yourcompany.com
+Website: https://yourwebsite.com
+
+LICENSE
+-------
+This software is licensed to you under the terms of your purchase.
+Redistribution is prohibited.
+
+Copyright © 2025 Your Company Name. All rights reserved.
+
+================================================================================
+                    Thank you for using our software!
+================================================================================
