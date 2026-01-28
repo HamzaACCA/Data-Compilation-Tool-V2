@@ -6,6 +6,21 @@ A Windows desktop application that automatically combines monthly Excel files wi
 
 **Developer:** Hamza Yahya - Internal Audit
 
+## Deployment
+
+### Live Web App
+**URL:** https://HamzaACCAAI.pythonanywhere.com
+
+### GitHub Repository
+**URL:** https://github.com/HamzaACCA/Data-Compilation-Tool-V2 (Private)
+
+### Deployment Options
+| Platform | Type | Data Persistence |
+|----------|------|------------------|
+| **PythonAnywhere** | Web (Live) | Yes - `/home/HamzaACCAAI/mysite/Data/` |
+| **Windows EXE** | Desktop | Yes - `<exe_location>/Data/` |
+| **Render** | Web | Requires paid plan for disk |
+
 ## What's New in V2
 
 ### Core Features
@@ -75,6 +90,9 @@ Data Compilation V2/
 ├── data_compilation.spec    # PyInstaller build config
 ├── installer_config.iss     # Inno Setup installer config
 ├── requirements.txt         # Python dependencies
+├── Procfile                 # Web deployment (Gunicorn)
+├── render.yaml              # Render deployment config
+├── .gitignore               # Git ignore file
 ├── BUILD_INSTALLER.bat      # Main build script
 ├── CLEAN_OLD_BUILD.bat      # Cleanup script
 ├── FIX_AND_BUILD.bat        # Quick build script
@@ -433,8 +451,36 @@ The Data sheet includes a `Top10_Rank` column for easy filtering by rank.
 - "Column Settings" → "Top 10 Analysis"
 - "Column Stats" → "Column Analysis"
 
+## Web Deployment (PythonAnywhere)
+
+### File Locations
+- **App Code:** `/home/HamzaACCAAI/mysite/`
+- **WSGI Config:** `/var/www/hamzaaccaai_pythonanywhere_com_wsgi.py`
+- **Data Storage:** `/home/HamzaACCAAI/mysite/Data/`
+
+### WSGI Configuration
+```python
+import sys
+import os
+
+project_home = '/home/HamzaACCAAI/mysite'
+if project_home not in sys.path:
+    sys.path.insert(0, project_home)
+
+os.environ['WEB_MODE'] = 'true'
+
+from launcher import app as application
+```
+
+### Updating the Web App
+1. Push changes to GitHub
+2. SSH to PythonAnywhere or use Files tab
+3. `cd ~/mysite && git pull`
+4. Reload web app from Web tab
+
 ---
 
-**Version:** 2.0 Final
-**Last Updated:** 19-Jan-2026
+**Version:** 2.0 Final (Deployed)
+**Last Updated:** 20-Jan-2026
+**Live URL:** https://HamzaACCAAI.pythonanywhere.com
 **Developer:** Hamza Yahya - Internal Audit
