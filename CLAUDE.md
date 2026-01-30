@@ -47,29 +47,32 @@ A smart analytical tool with multi-project support that automatically consolidat
 24. **Inline Trend Analysis** - Monthly trend chart displayed below stats cards
 25. **Inline Column Analysis** - Always-visible column stats table on dashboard (type, fill %, unique count, duplicates Yes/No) with Excel download
 26. **Compare Periods** - Side-by-side comparison with column-level breakdown (toggle modal), 3-sheet Excel download (Summary + Comparison + Data)
-27. **Date Column Auto-Detection** - Date column dropdown only shows columns containing date values
-28. **Date Column in Filter Card** - Date column selector moved from settings modal to main filter area with auto-save
-29. **Export PDF** - Generate printable PDF report (button above Top 10 charts)
-30. **Top 10 Analysis** - Configure which columns to display in dashboard
-31. **Top 10 Excel Download** - Download button on each chart exports actual data rows (2-sheet workbook: Summary + Data)
-32. **Column Analysis Excel Download** - Download button exports all column stats (2-sheet workbook: Column Analysis + Summary)
-33. **Auto Date Range** - Filter dates auto-populate with earliest and latest dates from data
+27. **Advanced Comparative Analysis** - Group-by aggregation (SUM/COUNT/AVERAGE/MIN/MAX) across two periods with numeric value columns, inline results section with Excel download (3-sheet: Summary + Comparison + Data)
+28. **Date Column Auto-Detection** - Date column dropdown only shows columns containing date values
+29. **Date Column in Filter Card** - Date column selector moved from settings modal to main filter area with auto-save
+30. **Export PDF** - Generate printable PDF report (button above Top 10 charts)
+31. **Top 10 Analysis** - Configure which columns to display in dashboard
+32. **Top 10 Excel Download** - Download button on each chart exports actual data rows (2-sheet workbook: Summary + Data)
+33. **Column Analysis Excel Download** - Download button exports all column stats (2-sheet workbook: Column Analysis + Summary)
+34. **Auto Date Range** - Filter dates auto-populate with earliest and latest dates from data
 
 ### Performance
-34. **Fast Excel Reader** - python-calamine (Rust-based) replaces openpyxl for ~10x faster uploads
-35. **Fast Excel Writer** - Direct xlsxwriter API bypasses pandas overhead for ~2x faster Excel generation
-36. **Lazy Excel Cache** - Excel file generated on download only, not on every upload
-37. **CSV Download Option** - `/download?format=csv` for near-instant downloads
-38. **Memory Caching** - Dataframes cached in memory with 5-minute TTL
-39. **DataFrame Optimization** - Automatic memory optimization (categories, downcasting, ~79% reduction)
-40. **Chunked File Reading** - Large CSV files (>50MB) read in chunks
-41. **Lazy Loading** - Upload log loads in pages with "Load More"
-42. **Performance Monitor** - Bottom-left indicator showing cache size and status
+35. **Fast Excel Reader** - python-calamine (Rust-based) replaces openpyxl for ~10x faster uploads
+36. **Fast Excel Writer** - Raw XML generation bypasses xlsxwriter overhead for ~3x faster Excel generation, with datetime formatting (dd-MMM-YYYY) and multi-sheet support
+37. **Lazy Excel Cache** - Excel file generated on download only, not on every upload
+38. **Streaming CSV Downloads** - CSV downloads use in-memory `BytesIO` streaming (no temp files on disk)
+39. **In-Memory Excel Downloads** - Filtered and comparison Excel downloads use `BytesIO` with `Content-Length` headers (no temp files)
+40. **Memory Caching** - Dataframes cached in memory with 5-minute TTL; all read-only endpoints use `get_cached_dataframe()`
+41. **Cache Invalidation** - Cache is cleared on upload, delete upload, mapped upload, and data reset
+42. **DataFrame Optimization** - Automatic memory optimization (categories, downcasting, ~79% reduction); triggers on datasets >10K rows and on mapped uploads
+43. **Chunked File Reading** - Large CSV files (>50MB) read in chunks
+44. **Lazy Loading** - Upload log loads in pages with "Load More"
+45. **Performance Monitor** - Bottom-left indicator showing accurate cache size (uses `memory_usage(deep=True)` for DataFrames)
 
 ### Window Controls
-43. **Standard Maximize/Restore** - Works like normal Windows applications
-44. **Double-Click Title Bar** - Double-click to maximize/restore window
-45. **Draggable Title Bar** - Title bar is draggable only when not maximized
+46. **Standard Maximize/Restore** - Works like normal Windows applications
+47. **Double-Click Title Bar** - Double-click to maximize/restore window
+48. **Draggable Title Bar** - Title bar is draggable only when not maximized
 
 ## Tech Stack
 
@@ -95,6 +98,8 @@ Data Compilation V3/
 ├── BUILD_INSTALLER.bat      # Main build script
 ├── CLEAN_OLD_BUILD.bat      # Cleanup script
 ├── FIX_AND_BUILD.bat        # Quick build script
+├── .env                     # Environment variables (GITHUB_TOKEN) - git-ignored
+├── .gitignore               # Git ignore rules
 ├── CLAUDE.md                # Developer documentation (this file)
 ├── README.md                # User documentation
 ├── USER_GUIDE.txt           # End-user guide
@@ -140,7 +145,7 @@ Data Compilation V3/
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/dashboard` | GET | Dashboard page |
-| `/api/columns` | GET | Get available columns (includes `date_columns` for auto-detected date fields) |
+| `/api/columns` | GET | Get available columns (includes `date_columns` and `numeric_columns`) |
 | `/api/settings` | GET | Get project settings |
 | `/api/settings` | POST | Save project settings |
 | `/api/date-range` | GET | Get min/max dates |
@@ -151,6 +156,8 @@ Data Compilation V3/
 | `/api/download-column-stats` | GET | Download column analysis as Excel (2-sheet: Column Analysis + Summary) |
 | `/api/compare-column` | GET | Compare a column across two periods (top 25 values with counts and change %) |
 | `/api/download-comparison` | GET | Download full comparison as Excel (3-sheet: Summary + Comparison + Data) |
+| `/api/advanced-analysis` | GET | Advanced group-by aggregation comparison across two periods (top 50 results) |
+| `/api/download-advanced-analysis` | GET | Download advanced analysis as Excel (3-sheet: Summary + Comparison + Data) |
 | `/api/trend-analysis` | GET | Get monthly trend data |
 
 ### Data Management
@@ -226,19 +233,25 @@ def read_file(filepath_or_obj):
     # Accepts both string paths and file-like objects (FileStorage)
 ```
 
-### Fast Excel Writer
+### Fast Excel Writer (Raw XML)
 ```python
+def _write_xlsx_raw(sheets_data, output):
+    # Generates xlsx via raw XML + zipfile (~3x faster than xlsxwriter)
+    # Builds shared string table, worksheet XML, and packages as ZIP
+    # Supports multiple sheets, numeric values, and string data
+    # Used by: _write_excel_fast(), download_filtered(), download_top10(),
+    #          download_comparison(), download_advanced_analysis()
+
 def _write_excel_fast(df, filepath):
-    # Writes Excel using xlsxwriter directly (bypasses pandas overhead, ~2x faster)
-    # Uses constant_memory mode + write_row for speed
-    # Used by: generate_excel_cache(), download_consolidated(), download_filtered()
+    # Convenience wrapper: calls _write_xlsx_raw() with a single sheet
+    # Converts datetime columns to dd-MMM-YYYY, category columns to strings
 ```
 
 ### Lazy Excel Cache
 ```python
 # Excel cache is NOT generated on upload — stale .xlsx is deleted on upload
 # Excel is generated on-demand via _write_excel_fast() when user downloads
-# /download supports ?format=csv for near-instant CSV downloads
+# /download supports ?format=csv for near-instant streaming CSV downloads (no temp file)
 ```
 
 ### Memory Caching System
@@ -249,9 +262,11 @@ CACHE_TTL = 300  # 5 minutes
 
 def get_cached_dataframe(project_name, force_reload=False):
     # Returns cached dataframe or loads from disk
+    # Used by ALL read-only endpoints (stats, columns, dashboard, downloads, comparisons, etc.)
 
 def clear_cache(project_name=None):
     # Clears memory cache
+    # Called after: upload, delete_upload, upload_mapped, reset_consolidated
 ```
 
 ### DataFrame Optimization
@@ -372,12 +387,13 @@ from launcher import app as application
 
 ## Performance Tips
 
-1. **Use CSV for downloads** — `/download?format=csv` is ~6x faster than Excel
+1. **Use CSV for downloads** — `/download?format=csv` streams directly from memory (~6x faster than Excel, no temp files)
 2. **Second Excel download is instant** — first download generates and caches the `.xlsx`; subsequent downloads serve the cached file (~1s)
-3. **Enable caching** — data loads instantly on repeated access (5-min TTL)
+3. **All endpoints use cache** — every read-only endpoint uses `get_cached_dataframe()`, data loads instantly on repeated access (5-min TTL)
 4. **Use pagination** — upload log loads in chunks for large histories
-5. **Monitor cache** — click performance indicator to view/clear cache
+5. **Monitor cache** — click performance indicator to view/clear cache; shows accurate DataFrame memory usage
 6. **Large CSV files** — files >50MB are read in chunks automatically
+7. **Filtered downloads are in-memory** — `/api/download-filtered` uses `BytesIO`, no temp files left on disk
 
 ## Common Issues & Solutions
 
@@ -390,6 +406,9 @@ from launcher import app as application
 | Slow first Excel download | Excel cache is lazy (generated on-demand) | Use CSV download; second Excel download is cached |
 | Window moves when maximized | Title bar drag region active | Fixed — drag disabled when maximized |
 | Cannot copy text from app | Window-wide drag region | Fixed — only title bar is draggable |
+| NaN/Inf crash on Excel download | xlsxwriter can't write NaN/Inf values | Fixed — `nan_inf_to_errors` enabled on all Workbook instances |
+| Stale data after delete upload | Cache not invalidated after removing rows | Fixed — `clear_cache()` called after all data mutations |
+| Dark mode summary header wrong color | Hardcoded `color:#2c3e50` on `<h4>` | Fixed — uses `.summary-heading` CSS class with dark mode variant |
 
 ## Performance Learnings (V3 Optimization Log)
 
@@ -401,13 +420,13 @@ from launcher import app as application
 
 **Key insight:** calamine doesn't auto-rename duplicate columns like openpyxl does. `_deduplicate_columns()` was added to match openpyxl's `.1`, `.2` suffix behavior.
 
-### Download Speed: 103s → 54s (Excel) / 9s (CSV)
+### Download Speed: 103s → 14s (Excel) / 3s (CSV)
 
-**Root cause:** `df.to_excel()` via pandas has heavy per-cell type-checking overhead.
+**Root cause:** `df.to_excel()` via pandas has heavy per-cell type-checking overhead. xlsxwriter's `write_row()` is ~2x faster but still bottlenecked by per-cell XML generation (~72K cells/sec).
 
-**Fix:** `_write_excel_fast()` writes directly via xlsxwriter API using `write_row()` + `constant_memory` mode — bypasses pandas overhead, ~2x faster.
+**Fix:** `_write_xlsx_raw()` generates xlsx XML directly via string concatenation + `zipfile`, bypassing xlsxwriter entirely — ~3x faster than xlsxwriter for large datasets.
 
-**Key insight:** CSV is 40x faster than any Excel approach for the same data. Added `?format=csv` to `/download` endpoint.
+**Key insight:** An xlsx file is a ZIP of XML files. By generating the XML directly with Python string operations and a shared string table, we skip xlsxwriter's per-cell type checking, format management, and XML builder overhead. CSV remains fastest for non-Excel formats.
 
 ### Excel Cache: Removed Background Thread
 
@@ -429,12 +448,15 @@ from launcher import app as application
 | Method | Time |
 |--------|------|
 | `df.to_excel()` via pandas | 70-80s |
-| xlsxwriter direct `write_row()` | 35s |
-| CSV `df.to_csv()` | 2s |
+| xlsxwriter `write_row()` + constant_memory | 42s |
+| xlsxwriter `write_row()` + in_memory | 35s |
+| **Raw XML + zipfile (`_write_xlsx_raw`)** | **14s** |
+| CSV `df.to_csv()` | 3s |
 
 **Other approaches tested (not adopted):**
 | Method | Time | Why not adopted |
 |--------|------|-----------------|
+| polars write_excel (Rust xlsxwriter) | 53s | Slower than Python xlsxwriter (no constant_memory), duplicate column issues |
 | pyexcelerate | 35-77s | No speed gain over direct xlsxwriter; extra dependency; type conversion issues |
 | openpyxl write_only | 107s | Slower than xlsxwriter |
 | xlsxwriter constant_memory via pandas | 48s | Produced corrupted files through pandas interface |
@@ -446,8 +468,46 @@ from launcher import app as application
 | Reduction | — | ~79% |
 | Time cost | — | ~300ms |
 
+## Environment Variables
+
+Store secrets in `.env` (git-ignored):
+
+```
+GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+The `.env` file is listed in `.gitignore` and will never be committed.
+
+## Changelog
+
+### V3.1 — 30-Jan-2026 (Bug Fixes + Download Speed)
+
+**Bug Fixes:**
+- Fixed `delete_upload` unbound `rows_removed` variable when pickle file doesn't exist
+- Fixed `delete_upload` not clearing cache or removing stale Excel after row removal
+- Fixed `upload_mapped_file` not clearing cache after saving pickle
+- Fixed `upload_mapped_file` not running `optimize_dataframe()` on uploaded data
+- Fixed `reset_consolidated` not clearing cache after deleting data files
+- Fixed `reset_consolidated` not logging to audit log
+- Fixed `_write_excel_fast` crashing on NaN/Inf values — enabled `nan_inf_to_errors` on all 6 `xlsxwriter.Workbook` instances
+- Fixed `_write_excel_fast` writing raw datetime objects — now converts to `dd-MMM-YYYY` formatted strings
+- Fixed `get_memory_stats` returning wrong cache size — uses `memory_usage(deep=True).sum()` for DataFrames instead of `sys.getsizeof()`
+- Fixed `combine_files` optimization condition `% 10000 == 0` (almost never triggers) — changed to `> 10000`
+- Fixed Escape key not closing Summary and Audit Log modals in `index.html`
+- Fixed dark mode not applying to summary modal "Column Types" header — replaced hardcoded `color:#2c3e50` with `.summary-heading` CSS class
+
+**Enhancements:**
+- Raw XML Excel writer (`_write_xlsx_raw`) — generates xlsx via direct XML + zipfile, ~3x faster than xlsxwriter (14s vs 42s for 18K rows × 152 cols)
+- All Excel download endpoints (filtered, top10, comparison, advanced analysis) now use raw XML writer
+- Streaming CSV downloads — `/download?format=csv` uses `BytesIO` instead of writing temp files to disk
+- In-memory filtered downloads — `/api/download-filtered` uses `BytesIO` for both CSV and Excel (no temp files)
+- All read-only endpoints now use `get_cached_dataframe()` instead of direct `pd.read_pickle()`/`pd.read_excel()` (15+ endpoints)
+- PyWebView save dialogs now use `get_cached_dataframe()` and `_write_excel_fast()` instead of `pd.read_pickle()` and `df.to_excel()`
+- `Content-Length` headers added to all `BytesIO` responses for accurate download progress
+- Removed duplicate `import os`; moved `import io` and `import xlsxwriter` to top-level imports
+
 ---
 
-**Version:** 3.0 (In Development)
+**Version:** 3.1
 **Last Updated:** 30-Jan-2026
 **Developer:** Hamza Yahya - Internal Audit

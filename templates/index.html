@@ -215,6 +215,8 @@
         .summary-stat-value { font-size: 1.2em; font-weight: 600; color: #2c3e50; }
         body.dark-mode .summary-stat-value { color: #e0e0e0; }
         .summary-stat-label { font-size: 0.75em; color: #7f8c8d; text-transform: uppercase; }
+        .summary-heading { color: #2c3e50; }
+        body.dark-mode .summary-heading { color: #e0e0e0; }
 
         /* Recent Projects */
         .recent-projects { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
@@ -1070,6 +1072,8 @@
                         hideUploadConfirm();
                         hideUndoConfirm();
                         hideDeleteProject();
+                        hideSummaryModal();
+                        hideAuditLog();
                         break;
                     case 'F1': // F1 - Show keyboard shortcuts
                         e.preventDefault();
@@ -1312,7 +1316,7 @@ F1 - Show this help`);
                                 <div class="summary-stat-label">Data Size</div>
                             </div>
                         </div>
-                        <h4 style="margin-top:20px;color:#2c3e50;">Column Types</h4>
+                        <h4 style="margin-top:20px;" class="summary-heading">Column Types</h4>
                         <div style="max-height:200px;overflow-y:auto;">
                             ${data.column_info.map(c => `
                                 <div style="display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #e9ecef;">

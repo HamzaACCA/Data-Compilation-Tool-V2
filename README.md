@@ -3,6 +3,7 @@
 A desktop + web application to automatically combine monthly Excel files with matching headers into a single consolidated file, with analytics dashboard.
 
 **Prepared by:** Hamza Yahya - Internal Audit
+**Version:** 3.1
 
 ## Features
 
@@ -12,7 +13,8 @@ A desktop + web application to automatically combine monthly Excel files with ma
 - Dashboard with configurable Top 10 charts, trend analysis, and PDF export
 - Date range filtering and period comparison
 - Dark mode, keyboard shortcuts, audit log
-- CSV and Excel download options
+- Streaming CSV and in-memory Excel downloads (no temp files)
+- Memory-cached data access across all endpoints with automatic invalidation
 
 ## Requirements
 
@@ -86,6 +88,14 @@ xlsxwriter
 python-calamine
 ```
 
+## Environment Setup
+
+Create a `.env` file in the project root (already git-ignored):
+
+```
+GITHUB_TOKEN=your_github_token_here
+```
+
 ## Project Structure
 
 ```
@@ -97,6 +107,8 @@ Data Compilation V3/
 ├── data_compilation.spec    # PyInstaller config
 ├── installer_config.iss     # Inno Setup config
 ├── requirements.txt         # Python dependencies
+├── .env                     # Environment variables (git-ignored)
+├── .gitignore               # Git ignore rules
 ├── CLAUDE.md                # Developer documentation
 ├── README.md                # This file
 ├── USER_GUIDE.txt           # End-user guide
@@ -111,6 +123,24 @@ Data Compilation V3/
 | Download not working | Use native save dialog (desktop) or CSV format (web) |
 | Upload fails | Check file is .xlsx/.xls/.csv, headers match, file < 50MB |
 | Slow Excel download | Use CSV format — much faster for large datasets |
+| Stale data after deleting upload | Refresh the page — cache is auto-cleared on mutations |
+
+## Changelog
+
+### V3.1 (30-Jan-2026)
+- Raw XML Excel writer — 3x faster Excel downloads (14s vs 42s for large datasets)
+- Fixed multiple cache invalidation bugs (delete upload, mapped upload, reset)
+- Fixed Excel download crashes on NaN/Inf values
+- Fixed datetime columns displaying as raw objects in Excel exports
+- Fixed Escape key not closing all modals
+- Fixed dark mode styling on summary modal
+- Streaming CSV downloads (no temp files)
+- In-memory filtered Excel downloads
+- All endpoints now use memory cache for faster responses
+- Accurate cache size reporting in performance monitor
+
+### V3.0
+- Initial release with multi-project support, dashboard, and analytics
 
 ## Support
 

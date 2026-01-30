@@ -4,6 +4,7 @@ Supports multiple consolidation projects with dynamic dashboard columns
 """
 import os
 import sys
+import io
 import threading
 import time
 import json
@@ -13,6 +14,9 @@ import numpy as np
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from functools import lru_cache
+import xlsxwriter
+import zipfile
+from xml.sax.saxutils import escape as _xml_escape
 
 # Fast Excel reader (Rust-based, ~9x faster than openpyxl)
 try:
@@ -31,7 +35,6 @@ background_tasks = {}
 task_lock = threading.Lock()
 
 # Import webview for native window (optional - not used in web deployment)
-import os
 WEB_MODE = os.environ.get('RENDER') or os.environ.get('WEB_MODE')
 HAS_WEBVIEW = False
 if not WEB_MODE:
@@ -328,16 +331,192 @@ def read_file(filepath_or_obj):
 
 
 def _write_excel_fast(df, filepath):
-    """Write DataFrame to Excel using xlsxwriter directly (bypasses pandas overhead, ~2.3x faster)"""
-    import xlsxwriter
-    wb = xlsxwriter.Workbook(filepath, {'constant_memory': True})
-    ws = wb.add_worksheet()
-    headers = list(df.columns)
-    for col_idx, h in enumerate(headers):
-        ws.write(0, col_idx, h)
-    for row_idx, row in enumerate(df.values.tolist(), start=1):
-        ws.write_row(row_idx, 0, row)
-    wb.close()
+    """Write DataFrame to Excel using raw XML generation (~3x faster than xlsxwriter)"""
+    export_df = _prepare_export_df(df)
+    _write_xlsx_raw([('Sheet1', export_df)], filepath)
+
+
+# ── Raw XML Excel writer (~3x faster than xlsxwriter for large datasets) ──────
+
+def _col_letter(idx):
+    """Convert 0-based column index to Excel column letter (A, B, ... Z, AA, AB, ...)."""
+    result = ''
+    while True:
+        result = chr(65 + idx % 26) + result
+        idx = idx // 26 - 1
+        if idx < 0:
+            break
+    return result
+
+_COL_LETTERS = [_col_letter(i) for i in range(300)]
+
+
+def _collect_strings(df):
+    """Collect all unique string values from a DataFrame for shared string table."""
+    strings = set(str(h) for h in df.columns)
+    for c in range(df.shape[1]):
+        if df.iloc[:, c].dtype.kind not in ('i', 'u', 'f'):
+            arr = df.iloc[:, c].astype(str).replace(
+                {'nan': '', 'None': '', '<NA>': '', 'NaT': ''}
+            ).values
+            strings.update(arr)
+    strings.add('')
+    return strings
+
+
+def _df_to_sheet_xml(df, sst_index):
+    """Convert a DataFrame to xlsx worksheet XML using a shared string index."""
+    rows, cols = df.shape
+    if cols == 0:
+        return ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+                '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+                '<sheetData/></worksheet>')
+
+    while len(_COL_LETTERS) < cols:
+        _COL_LETTERS.append(_col_letter(len(_COL_LETTERS)))
+
+    headers = [str(h) for h in df.columns]
+    is_numeric = [df.iloc[:, c].dtype.kind in ('i', 'u', 'f') for c in range(cols)]
+
+    col_data = []
+    for c in range(cols):
+        if is_numeric[c]:
+            col_data.append(df.iloc[:, c].values)
+        else:
+            col_data.append(
+                df.iloc[:, c].astype(str).replace(
+                    {'nan': '', 'None': '', '<NA>': '', 'NaT': ''}
+                ).values
+            )
+
+    parts = [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        '<sheetData><row r="1">'
+    ]
+    for c in range(cols):
+        parts.append(f'<c r="{_COL_LETTERS[c]}1" t="s"><v>{sst_index[headers[c]]}</v></c>')
+    parts.append('</row>')
+
+    for r in range(rows):
+        r_num = r + 2
+        parts.append(f'<row r="{r_num}">')
+        for c in range(cols):
+            cl = _COL_LETTERS[c]
+            if is_numeric[c]:
+                val = col_data[c][r]
+                if pd.isna(val) or np.isinf(val):
+                    parts.append(f'<c r="{cl}{r_num}" t="s"><v>{sst_index[""]}</v></c>')
+                else:
+                    parts.append(f'<c r="{cl}{r_num}"><v>{val}</v></c>')
+            else:
+                parts.append(f'<c r="{cl}{r_num}" t="s"><v>{sst_index[col_data[c][r]]}</v></c>')
+        parts.append('</row>')
+
+    parts.append('</sheetData></worksheet>')
+    return ''.join(parts)
+
+
+def _write_xlsx_raw(sheets_data, output):
+    """Write multi-sheet xlsx using raw XML generation (~3x faster than xlsxwriter).
+
+    Args:
+        sheets_data: list of (sheet_name, DataFrame) tuples
+        output: file path string or BytesIO object
+    """
+    all_strings = set()
+    for _, df in sheets_data:
+        all_strings.update(_collect_strings(df))
+
+    sst = sorted(all_strings)
+    sst_index = {s: i for i, s in enumerate(sst)}
+
+    sst_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+        '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        f'count="0" uniqueCount="{len(sst)}">'
+        + ''.join(f'<si><t>{_xml_escape(s)}</t></si>' for s in sst)
+        + '</sst>'
+    )
+
+    ws_xmls = [_df_to_sheet_xml(df, sst_index) for _, df in sheets_data]
+
+    n = len(sheets_data)
+    ct_sheets = ''.join(
+        f'<Override PartName="/xl/worksheets/sheet{i+1}.xml" '
+        f'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        for i in range(n)
+    )
+    content_types = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        + ct_sheets +
+        '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+        '<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>'
+        '</Types>'
+    )
+    wb_rels_sheets = ''.join(
+        f'<Relationship Id="rId{i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet{i+1}.xml"/>'
+        for i in range(n)
+    )
+    wb_rels = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        + wb_rels_sheets +
+        f'<Relationship Id="rId{n+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+        f'<Relationship Id="rId{n+2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>'
+        '</Relationships>'
+    )
+    sheet_entries = ''.join(
+        f'<sheet name="{_xml_escape(sheets_data[i][0])}" sheetId="{i+1}" r:id="rId{i+1}"/>'
+        for i in range(n)
+    )
+    workbook_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        f'<sheets>{sheet_entries}</sheets></workbook>'
+    )
+    rels_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+        '</Relationships>'
+    )
+    styles_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        '<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>'
+        '<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>'
+        '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>'
+        '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+        '<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>'
+        '</styleSheet>'
+    )
+
+    with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr('[Content_Types].xml', content_types)
+        zf.writestr('_rels/.rels', rels_xml)
+        zf.writestr('xl/_rels/workbook.xml.rels', wb_rels)
+        zf.writestr('xl/workbook.xml', workbook_xml)
+        zf.writestr('xl/styles.xml', styles_xml)
+        zf.writestr('xl/sharedStrings.xml', sst_xml)
+        for i, ws_xml in enumerate(ws_xmls):
+            zf.writestr(f'xl/worksheets/sheet{i+1}.xml', ws_xml)
+
+
+def _prepare_export_df(df):
+    """Prepare a DataFrame for Excel export: format datetimes, convert categories."""
+    export_df = df.copy()
+    for col in export_df.columns:
+        if pd.api.types.is_datetime64_any_dtype(export_df[col]):
+            export_df[col] = export_df[col].dt.strftime('%d-%b-%Y').fillna('')
+        elif export_df[col].dtype.name == 'category':
+            export_df[col] = export_df[col].astype(str)
+    return export_df
 
 
 def generate_excel_cache(project_name):
@@ -384,8 +563,8 @@ def combine_files(project_name, new_file_path, upload_id):
         else:
             combined_df = new_df
 
-        # Optimize combined dataframe periodically
-        if len(combined_df) % 10000 == 0:
+        # Optimize combined dataframe for large datasets
+        if len(combined_df) > 10000:
             combined_df = optimize_dataframe(combined_df)
 
         combined_df.to_pickle(files['pickle'])
@@ -638,6 +817,7 @@ def delete_upload(upload_id):
             return jsonify({'success': False, 'error': 'Upload not found'}), 404
 
         # Remove rows from consolidated data
+        rows_removed = 0
         if os.path.exists(project_files['pickle']):
             df = pd.read_pickle(project_files['pickle'])
             rows_before = len(df)
@@ -650,8 +830,16 @@ def delete_upload(upload_id):
             else:
                 # If no rows left, delete the pickle file
                 os.remove(project_files['pickle'])
-                if os.path.exists(project_files['excel']):
+
+            # Clear cache so next read gets fresh data
+            clear_cache(project_name)
+
+            # Remove stale Excel cache
+            if os.path.exists(project_files['excel']):
+                try:
                     os.remove(project_files['excel'])
+                except OSError:
+                    pass
 
         # Delete the uploaded file
         if os.path.exists(upload_entry['file_path']):
@@ -683,15 +871,12 @@ def get_stats():
             return jsonify({'exists': False, 'no_project': True})
 
         files = get_project_files(project_name)
-
-        if os.path.exists(files['pickle']):
-            df = pd.read_pickle(files['pickle'])
-            file_to_check = files['pickle']
-        elif os.path.exists(files['excel']):
-            df = pd.read_excel(files['excel'])
-            file_to_check = files['excel']
-        else:
+        df = get_cached_dataframe(project_name)
+        if df is None:
             return jsonify({'exists': False, 'project': project_name})
+
+        # Determine file for size/mtime
+        file_to_check = files['pickle'] if os.path.exists(files['pickle']) else files['excel']
 
         # Exclude _upload_id from columns list
         visible_columns = [c for c in df.columns if c != '_upload_id']
@@ -717,13 +902,8 @@ def get_columns():
         if not project_name:
             return jsonify({'success': False, 'error': 'No project selected'})
 
-        files = get_project_files(project_name)
-
-        if os.path.exists(files['pickle']):
-            df = pd.read_pickle(files['pickle'])
-        elif os.path.exists(files['excel']):
-            df = pd.read_excel(files['excel'])
-        else:
+        df = get_cached_dataframe(project_name)
+        if df is None:
             return jsonify({'success': False, 'error': 'No data in project', 'columns': []})
 
         # Return simple list of column names for dashboard (exclude internal _upload_id)
@@ -741,10 +921,14 @@ def get_columns():
                     if parsed.notna().sum() >= len(sample) * 0.8:
                         date_columns.append(c)
 
+        # Detect numeric columns
+        numeric_columns = [c for c in columns if pd.api.types.is_numeric_dtype(df[c])]
+
         return jsonify({
             'success': True,
             'columns': columns,
-            'date_columns': date_columns
+            'date_columns': date_columns,
+            'numeric_columns': numeric_columns
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e), 'columns': []})
@@ -806,16 +990,21 @@ def download_consolidated():
         if not os.path.exists(files['pickle']) and not os.path.exists(files['excel']):
             return jsonify({'success': False, 'error': 'No consolidated file exists yet'}), 404
 
-        # CSV download (fast - ~2s)
+        df = get_cached_dataframe(project_name)
+        if df is None:
+            return jsonify({'success': False, 'error': 'No consolidated file exists yet'}), 404
+
+        export_df = df[[c for c in df.columns if c != '_upload_id']]
+
+        # CSV download (fast - streaming, no temp file)
         if file_format == 'csv':
-            if os.path.exists(files['pickle']):
-                df = pd.read_pickle(files['pickle'])
-            else:
-                df = pd.read_excel(files['excel'])
-            export_df = df[[c for c in df.columns if c != '_upload_id']]
-            csv_path = files['excel'].replace('.xlsx', '.csv')
-            export_df.to_csv(csv_path, index=False)
-            return send_file(csv_path, as_attachment=True, download_name=f'{project_name}_consolidated.csv')
+            csv_buffer = io.BytesIO()
+            export_df.to_csv(csv_buffer, index=False)
+            csv_buffer.seek(0)
+            response = send_file(csv_buffer, mimetype='text/csv', as_attachment=True,
+                                 download_name=f'{project_name}_consolidated.csv')
+            response.headers['Content-Length'] = csv_buffer.getbuffer().nbytes
+            return response
 
         # Excel download - check if cached Excel exists and is up-to-date
         if os.path.exists(files['excel']) and os.path.exists(files['pickle']):
@@ -824,16 +1013,9 @@ def download_consolidated():
             if excel_time >= pickle_time:
                 return send_file(files['excel'], as_attachment=True, download_name=f'{project_name}_consolidated.xlsx')
 
-        # Generate Excel if no cache or cache is stale
-        if os.path.exists(files['pickle']):
-            df = pd.read_pickle(files['pickle'])
-            export_df = df[[c for c in df.columns if c != '_upload_id']]
-            _write_excel_fast(export_df, files['excel'])
-            return send_file(files['excel'], as_attachment=True, download_name=f'{project_name}_consolidated.xlsx')
-        elif os.path.exists(files['excel']):
-            return send_file(files['excel'], as_attachment=True, download_name=f'{project_name}_consolidated.xlsx')
-        else:
-            return jsonify({'success': False, 'error': 'No consolidated file exists yet'}), 404
+        # Generate Excel cache on disk (for future fast re-downloads)
+        _write_excel_fast(export_df, files['excel'])
+        return send_file(files['excel'], as_attachment=True, download_name=f'{project_name}_consolidated.xlsx')
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -851,15 +1033,17 @@ def get_data_summary():
             return jsonify({'success': False, 'error': 'No project selected'})
 
         files = get_project_files(project_name)
+        df = get_cached_dataframe(project_name)
+        if df is None:
+            return jsonify({'success': False, 'error': 'No data available'})
 
+        # Determine file size from disk
         if os.path.exists(files['pickle']):
-            df = pd.read_pickle(files['pickle'])
             file_size = os.path.getsize(files['pickle'])
         elif os.path.exists(files['excel']):
-            df = pd.read_excel(files['excel'])
             file_size = os.path.getsize(files['excel'])
         else:
-            return jsonify({'success': False, 'error': 'No data available'})
+            file_size = 0
 
         # Exclude internal columns
         visible_cols = [c for c in df.columns if c != '_upload_id']
@@ -940,6 +1124,9 @@ def upload_mapped_file():
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
         upload_id = f"{timestamp}_{secure_filename(file.filename)}"
 
+        # Optimize dataframe memory usage
+        df = optimize_dataframe(df)
+
         df['_upload_id'] = upload_id
 
         # Combine with existing data
@@ -950,6 +1137,9 @@ def upload_mapped_file():
             combined_df = df
 
         combined_df.to_pickle(project_files['pickle'])
+
+        # Clear cache so next read gets fresh data
+        clear_cache(project_name)
 
         # Remove stale Excel cache (will be regenerated on download via fast writer)
         if os.path.exists(project_files['excel']):
@@ -1049,9 +1239,10 @@ def api_clear_cache():
 def get_memory_stats():
     """Get memory usage statistics"""
     try:
-        import sys
-
-        cache_size = sum(sys.getsizeof(v) for v in data_cache.values())
+        cache_size = sum(
+            v.memory_usage(deep=True).sum() if isinstance(v, pd.DataFrame) else sys.getsizeof(v)
+            for v in data_cache.values()
+        )
         cache_items = len(data_cache)
 
         return jsonify({
@@ -1097,7 +1288,11 @@ def reset_consolidated():
             shutil.rmtree(files['uploads'])
             os.makedirs(files['uploads'], exist_ok=True)
 
+        # Clear cache so next read doesn't return stale data
+        clear_cache(project_name)
+
         if deleted:
+            log_audit(project_name, 'DATA_RESET', 'All data reset')
             return jsonify({'success': True, 'message': 'All data has been reset'})
         else:
             return jsonify({'success': False, 'error': 'No consolidated file exists'}), 404
@@ -1119,15 +1314,11 @@ def get_date_range():
         if not project_name:
             return jsonify({'success': False, 'error': 'No project selected'})
 
-        files = get_project_files(project_name)
         settings = load_project_settings(project_name)
         date_column = settings.get('date_column', '')
 
-        if os.path.exists(files['pickle']):
-            df = pd.read_pickle(files['pickle'])
-        elif os.path.exists(files['excel']):
-            df = pd.read_excel(files['excel'])
-        else:
+        df = get_cached_dataframe(project_name)
+        if df is None:
             return jsonify({'success': False, 'error': 'No consolidated file exists', 'needs_setup': True})
 
         if date_column and date_column in df.columns:
@@ -1160,14 +1351,10 @@ def get_dashboard_stats():
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
 
-        files = get_project_files(project_name)
         settings = load_project_settings(project_name)
 
-        if os.path.exists(files['pickle']):
-            df = pd.read_pickle(files['pickle'])
-        elif os.path.exists(files['excel']):
-            df = pd.read_excel(files['excel'])
-        else:
+        df = get_cached_dataframe(project_name)
+        if df is None:
             return jsonify({'success': False, 'error': 'No consolidated file exists'}), 404
 
         date_column = settings.get('date_column', '')
@@ -1221,14 +1408,10 @@ def compare_column():
         if not column or not start1 or not end1 or not start2 or not end2:
             return jsonify({'success': False, 'error': 'Missing parameters'}), 400
 
-        files = get_project_files(project_name)
         settings = load_project_settings(project_name)
 
-        if os.path.exists(files['pickle']):
-            df = pd.read_pickle(files['pickle'])
-        elif os.path.exists(files['excel']):
-            df = pd.read_excel(files['excel'])
-        else:
+        df = get_cached_dataframe(project_name)
+        if df is None:
             return jsonify({'success': False, 'error': 'No data available'}), 404
 
         if column not in df.columns:
@@ -1253,12 +1436,12 @@ def compare_column():
         for val in all_values:
             c1 = int(counts1.get(val, 0))
             c2 = int(counts2.get(val, 0))
-            change_pct = ((c2 - c1) / c1 * 100) if c1 > 0 else (100.0 if c2 > 0 else 0.0)
+            change_pct = round(((c2 - c1) / c1 * 100), 1) if c1 > 0 else round(c2 * 100.0, 1)
             comparison.append({
                 'value': str(val) if val is not None else '',
                 'count1': c1,
                 'count2': c2,
-                'change_pct': round(change_pct, 1)
+                'change_pct': change_pct
             })
 
         comparison.sort(key=lambda x: x['count1'] + x['count2'], reverse=True)
@@ -1294,14 +1477,10 @@ def download_comparison():
         if not column or not start1 or not end1 or not start2 or not end2:
             return jsonify({'success': False, 'error': 'Missing parameters'}), 400
 
-        files = get_project_files(project_name)
         settings = load_project_settings(project_name)
 
-        if os.path.exists(files['pickle']):
-            df = pd.read_pickle(files['pickle'])
-        elif os.path.exists(files['excel']):
-            df = pd.read_excel(files['excel'])
-        else:
+        df = get_cached_dataframe(project_name)
+        if df is None:
             return jsonify({'success': False, 'error': 'No data available'}), 404
 
         if column not in df.columns:
@@ -1336,12 +1515,12 @@ def download_comparison():
         for val in all_values:
             c1 = int(counts1.get(val, 0))
             c2 = int(counts2.get(val, 0))
-            change_pct = ((c2 - c1) / c1 * 100) if c1 > 0 else (100.0 if c2 > 0 else 0.0)
+            change_pct = round(((c2 - c1) / c1 * 100), 1) if c1 > 0 else round(c2 * 100.0, 1)
             rows.append({
                 'Value': str(val) if val is not None else '',
                 p1_label: c1,
                 p2_label: c2,
-                'Change %': round(change_pct, 1)
+                'Change %': change_pct
             })
 
         rows.sort(key=lambda x: x[p1_label] + x[p2_label], reverse=True)
@@ -1355,39 +1534,206 @@ def download_comparison():
         data_df = pd.concat([data_df1, data_df2], ignore_index=True)
         data_df = data_df.sort_values(by=[column, 'Period'], ignore_index=True)
 
-        import io
+        summary_df = pd.DataFrame({
+            'Metric': ['Period 1 Total Records', 'Period 2 Total Records', 'Column Compared'],
+            'Value': [str(len(df1)), str(len(df2)), column]
+        })
+        comparison_df = pd.DataFrame(rows)
+
         output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            summary_df = pd.DataFrame({
-                'Metric': ['Period 1 Total Records', 'Period 2 Total Records', 'Column Compared'],
-                'Value': [len(df1), len(df2), column]
-            })
-            summary_df.to_excel(writer, index=False, sheet_name='Summary')
-
-            comparison_df = pd.DataFrame(rows)
-            comparison_df.to_excel(writer, index=False, sheet_name='Comparison')
-
-            data_df.to_excel(writer, index=False, sheet_name='Data')
-
-            workbook = writer.book
-            for sheet_name in ['Summary', 'Comparison', 'Data']:
-                worksheet = writer.sheets[sheet_name]
-                if sheet_name == 'Summary':
-                    sheet_df = summary_df
-                elif sheet_name == 'Comparison':
-                    sheet_df = comparison_df
-                else:
-                    sheet_df = data_df
-                for i, col_name in enumerate(sheet_df.columns):
-                    max_len = max(sheet_df[col_name].astype(str).map(len).max(), len(str(col_name))) + 2
-                    worksheet.set_column(i, i, min(max_len, 50))
-
+        _write_xlsx_raw([
+            ('Summary', summary_df),
+            ('Comparison', _prepare_export_df(comparison_df)),
+            ('Data', _prepare_export_df(data_df))
+        ], output)
         output.seek(0)
         return send_file(
             output,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             as_attachment=True,
             download_name=f'Comparison_{column}_{start1}_to_{end2}.xlsx'
+        )
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/advanced-analysis')
+def advanced_analysis():
+    """Advanced comparative analysis with group-by aggregation across two periods"""
+    try:
+        config = load_config()
+        project_name = config.get('current_project')
+
+        if not project_name:
+            return jsonify({'success': False, 'error': 'No project selected'})
+
+        date_column = request.args.get('date_column')
+        group_column = request.args.get('group_column')
+        value_column = request.args.get('value_column')
+        agg_method = request.args.get('agg_method', 'sum')
+        start1 = request.args.get('start1')
+        end1 = request.args.get('end1')
+        start2 = request.args.get('start2')
+        end2 = request.args.get('end2')
+
+        if not all([date_column, group_column, value_column, start1, end1, start2, end2]):
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+
+        df = get_cached_dataframe(project_name)
+        if df is None:
+            return jsonify({'success': False, 'error': 'No data available'}), 404
+
+        for col in [date_column, group_column, value_column]:
+            if col not in df.columns:
+                return jsonify({'success': False, 'error': f'Column "{col}" not found'}), 404
+
+        df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
+        df[value_column] = pd.to_numeric(df[value_column], errors='coerce')
+
+        df1 = df[(df[date_column] >= pd.to_datetime(start1)) & (df[date_column] <= pd.to_datetime(end1))]
+        df2 = df[(df[date_column] >= pd.to_datetime(start2)) & (df[date_column] <= pd.to_datetime(end2))]
+
+        agg_map = {'sum': 'sum', 'count': 'count', 'average': 'mean', 'min': 'min', 'max': 'max'}
+        agg_func = agg_map.get(agg_method.lower(), 'sum')
+
+        if len(df1) == 0 and len(df2) == 0:
+            return jsonify({'success': False, 'error': 'No data found for either period'})
+
+        agg1 = df1.groupby(group_column)[value_column].agg(agg_func) if len(df1) > 0 else pd.Series(dtype=float)
+        agg2 = df2.groupby(group_column)[value_column].agg(agg_func) if len(df2) > 0 else pd.Series(dtype=float)
+
+        all_groups = set(agg1.index.tolist()) | set(agg2.index.tolist())
+
+        comparison = []
+        for group in all_groups:
+            v1 = float(agg1.get(group, 0)) if group in agg1.index else 0
+            v2 = float(agg2.get(group, 0)) if group in agg2.index else 0
+            if pd.isna(v1):
+                v1 = 0
+            if pd.isna(v2):
+                v2 = 0
+            change_pct = round(((v2 - v1) / v1 * 100), 1) if v1 != 0 else round(v2 * 100.0, 1)
+            comparison.append({
+                'group': str(group) if group is not None else '',
+                'value1': round(v1, 2),
+                'value2': round(v2, 2),
+                'change_pct': change_pct
+            })
+
+        comparison.sort(key=lambda x: x['value1'] + x['value2'], reverse=True)
+
+        return jsonify({
+            'success': True,
+            'group_column': group_column,
+            'value_column': value_column,
+            'agg_method': agg_method,
+            'period1': {'start': start1, 'end': end1, 'rows': len(df1)},
+            'period2': {'start': start2, 'end': end2, 'rows': len(df2)},
+            'comparison': comparison[:50]
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/download-advanced-analysis')
+def download_advanced_analysis():
+    """Download advanced analysis as Excel (3 sheets: Summary, Comparison, Data)"""
+    try:
+        config = load_config()
+        project_name = config.get('current_project')
+
+        if not project_name:
+            return jsonify({'success': False, 'error': 'No project selected'}), 400
+
+        date_column = request.args.get('date_column')
+        group_column = request.args.get('group_column')
+        value_column = request.args.get('value_column')
+        agg_method = request.args.get('agg_method', 'sum')
+        start1 = request.args.get('start1')
+        end1 = request.args.get('end1')
+        start2 = request.args.get('start2')
+        end2 = request.args.get('end2')
+
+        if not all([date_column, group_column, value_column, start1, end1, start2, end2]):
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+
+        df = get_cached_dataframe(project_name)
+        if df is None:
+            return jsonify({'success': False, 'error': 'No data available'}), 404
+
+        df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
+        df[value_column] = pd.to_numeric(df[value_column], errors='coerce')
+
+        df1 = df[(df[date_column] >= pd.to_datetime(start1)) & (df[date_column] <= pd.to_datetime(end1))]
+        df2 = df[(df[date_column] >= pd.to_datetime(start2)) & (df[date_column] <= pd.to_datetime(end2))]
+
+        agg_map = {'sum': 'sum', 'count': 'count', 'average': 'mean', 'min': 'min', 'max': 'max'}
+        agg_func = agg_map.get(agg_method.lower(), 'sum')
+
+        agg1 = df1.groupby(group_column)[value_column].agg(agg_func) if len(df1) > 0 else pd.Series(dtype=float)
+        agg2 = df2.groupby(group_column)[value_column].agg(agg_func) if len(df2) > 0 else pd.Series(dtype=float)
+
+        all_groups = set(agg1.index.tolist()) | set(agg2.index.tolist())
+
+        def _fmt_date(d):
+            try:
+                return pd.to_datetime(d).strftime('%d-%b-%Y')
+            except:
+                return d
+
+        p1_label = f'Period 1 ({_fmt_date(start1)} to {_fmt_date(end1)})'
+        p2_label = f'Period 2 ({_fmt_date(start2)} to {_fmt_date(end2)})'
+
+        rows = []
+        for group in all_groups:
+            v1 = float(agg1.get(group, 0)) if group in agg1.index else 0
+            v2 = float(agg2.get(group, 0)) if group in agg2.index else 0
+            if pd.isna(v1):
+                v1 = 0
+            if pd.isna(v2):
+                v2 = 0
+            change_pct = round(((v2 - v1) / v1 * 100), 1) if v1 != 0 else round(v2 * 100.0, 1)
+            rows.append({
+                group_column: str(group) if group is not None else '',
+                p1_label: round(v1, 2),
+                p2_label: round(v2, 2),
+                'Change %': change_pct
+            })
+
+        rows.sort(key=lambda x: x[p1_label] + x[p2_label], reverse=True)
+
+        # Build Data sheet: raw transaction rows from both periods
+        export_cols = [c for c in df.columns if c != '_upload_id']
+        data_df1 = df1[export_cols].copy()
+        data_df1.insert(0, 'Period', p1_label)
+        data_df2 = df2[export_cols].copy()
+        data_df2.insert(0, 'Period', p2_label)
+        data_df = pd.concat([data_df1, data_df2], ignore_index=True)
+        data_df = data_df.sort_values(by=[group_column, 'Period'], ignore_index=True)
+
+        summary_df = pd.DataFrame({
+            'Metric': ['Group Column', 'Value Column', 'Aggregation Method',
+                        'Period 1', 'Period 1 Rows', 'Period 2', 'Period 2 Rows'],
+            'Value': [group_column, value_column, agg_method.upper(),
+                      f'{_fmt_date(start1)} to {_fmt_date(end1)}', str(len(df1)),
+                      f'{_fmt_date(start2)} to {_fmt_date(end2)}', str(len(df2))]
+        })
+        comparison_df = pd.DataFrame(rows)
+
+        output = io.BytesIO()
+        _write_xlsx_raw([
+            ('Summary', summary_df),
+            ('Comparison', _prepare_export_df(comparison_df)),
+            ('Data', _prepare_export_df(data_df))
+        ], output)
+        output.seek(0)
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'Advanced_Analysis_{group_column}_{agg_method}_{start1}_to_{end2}.xlsx'
         )
 
     except Exception as e:
@@ -1404,13 +1750,8 @@ def get_column_stats():
         if not project_name:
             return jsonify({'success': False, 'error': 'No project selected'})
 
-        files = get_project_files(project_name)
-
-        if os.path.exists(files['pickle']):
-            df = pd.read_pickle(files['pickle'])
-        elif os.path.exists(files['excel']):
-            df = pd.read_excel(files['excel'])
-        else:
+        df = get_cached_dataframe(project_name)
+        if df is None:
             return jsonify({'success': False, 'error': 'No data available'})
 
         columns_stats = []
@@ -1469,13 +1810,8 @@ def download_column_stats():
         if not project_name:
             return "No project selected", 404
 
-        files = get_project_files(project_name)
-
-        if os.path.exists(files['pickle']):
-            df = pd.read_pickle(files['pickle'])
-        elif os.path.exists(files['excel']):
-            df = pd.read_excel(files['excel'])
-        else:
+        df = get_cached_dataframe(project_name)
+        if df is None:
             return "No data available", 404
 
         rows = []
@@ -1514,35 +1850,37 @@ def download_column_stats():
 
         stats_df = pd.DataFrame(rows)
 
-        import io
         output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            stats_df.to_excel(writer, sheet_name='Column Analysis', index=False)
-            workbook = writer.book
-            worksheet = writer.sheets['Column Analysis']
+        wb = xlsxwriter.Workbook(output, {'nan_inf_to_errors': True})
 
-            header_fmt = workbook.add_format({'bold': True, 'bg_color': '#34495e', 'font_color': 'white', 'border': 1})
-            for col_idx, col_name in enumerate(stats_df.columns):
-                worksheet.write(0, col_idx, col_name, header_fmt)
+        # Column Analysis sheet
+        ws_stats = wb.add_worksheet('Column Analysis')
+        header_fmt = wb.add_format({'bold': True, 'bg_color': '#34495e', 'font_color': 'white', 'border': 1})
+        stat_headers = list(stats_df.columns)
+        for col_idx, col_name in enumerate(stat_headers):
+            ws_stats.write(0, col_idx, col_name, header_fmt)
+        for r_idx, row_data in enumerate(stats_df.values.tolist(), start=1):
+            ws_stats.write_row(r_idx, 0, row_data)
+        ws_stats.set_column(0, 0, 30)
+        ws_stats.set_column(1, 1, 12)
+        ws_stats.set_column(2, 2, 12)
+        ws_stats.set_column(3, 3, 15)
+        ws_stats.set_column(4, 4, 12)
+        ws_stats.set_column(5, 5, 40)
 
-            worksheet.set_column('A:A', 30)
-            worksheet.set_column('B:B', 12)
-            worksheet.set_column('C:C', 12)
-            worksheet.set_column('D:D', 15)
-            worksheet.set_column('E:E', 12)
-            worksheet.set_column('F:F', 40)
+        # Summary sheet
+        ws_summary = wb.add_worksheet('Summary')
+        bold = wb.add_format({'bold': True})
+        ws_summary.write(0, 0, 'Project', bold)
+        ws_summary.write(0, 1, project_name)
+        ws_summary.write(1, 0, 'Total Rows', bold)
+        ws_summary.write(1, 1, len(df))
+        ws_summary.write(2, 0, 'Total Columns', bold)
+        ws_summary.write(2, 1, len(rows))
+        ws_summary.set_column(0, 0, 20)
+        ws_summary.set_column(1, 1, 30)
 
-            # Summary row
-            summary_sheet = workbook.add_worksheet('Summary')
-            bold = workbook.add_format({'bold': True})
-            summary_sheet.write('A1', 'Project', bold)
-            summary_sheet.write('B1', project_name)
-            summary_sheet.write('A2', 'Total Rows', bold)
-            summary_sheet.write('B2', len(df))
-            summary_sheet.write('A3', 'Total Columns', bold)
-            summary_sheet.write('B3', len(rows))
-            summary_sheet.set_column('A:A', 20)
-            summary_sheet.set_column('B:B', 30)
+        wb.close()
 
         output.seek(0)
         safe_name = "".join(c for c in project_name if c.isalnum() or c in (' ', '-', '_')).strip()
@@ -1567,14 +1905,10 @@ def get_trend_analysis():
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
 
-        files = get_project_files(project_name)
         settings = load_project_settings(project_name)
 
-        if os.path.exists(files['pickle']):
-            df = pd.read_pickle(files['pickle'])
-        elif os.path.exists(files['excel']):
-            df = pd.read_excel(files['excel'])
-        else:
+        df = get_cached_dataframe(project_name)
+        if df is None:
             return jsonify({'success': False, 'error': 'No data available'})
 
         date_column = settings.get('date_column', '')
@@ -1620,14 +1954,10 @@ def download_filtered():
         end_date = request.args.get('end_date')
         file_format = request.args.get('format', 'csv')  # Default to CSV for speed
 
-        files = get_project_files(project_name)
         settings = load_project_settings(project_name)
 
-        if os.path.exists(files['pickle']):
-            df = pd.read_pickle(files['pickle'])
-        elif os.path.exists(files['excel']):
-            df = pd.read_excel(files['excel'])
-        else:
+        df = get_cached_dataframe(project_name)
+        if df is None:
             return jsonify({'success': False, 'error': 'No consolidated file exists'}), 404
 
         date_column = settings.get('date_column', '')
@@ -1644,13 +1974,21 @@ def download_filtered():
         export_df = filtered_df[[c for c in filtered_df.columns if c != '_upload_id']]
 
         if file_format == 'xlsx':
-            temp_file = os.path.join(files['path'], f'filtered_{start_date}_to_{end_date}.xlsx')
-            _write_excel_fast(export_df, temp_file)
-            return send_file(temp_file, as_attachment=True, download_name=f'{project_name}_{start_date}_to_{end_date}.xlsx')
+            output = io.BytesIO()
+            _write_xlsx_raw([('Data', _prepare_export_df(export_df))], output)
+            output.seek(0)
+            response = send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                                 as_attachment=True, download_name=f'{project_name}_{start_date}_to_{end_date}.xlsx')
+            response.headers['Content-Length'] = output.getbuffer().nbytes
+            return response
         else:
-            temp_file = os.path.join(files['path'], f'filtered_{start_date}_to_{end_date}.csv')
-            export_df.to_csv(temp_file, index=False)
-            return send_file(temp_file, as_attachment=True, download_name=f'{project_name}_{start_date}_to_{end_date}.csv')
+            csv_buffer = io.BytesIO()
+            export_df.to_csv(csv_buffer, index=False)
+            csv_buffer.seek(0)
+            response = send_file(csv_buffer, mimetype='text/csv', as_attachment=True,
+                                 download_name=f'{project_name}_{start_date}_to_{end_date}.csv')
+            response.headers['Content-Length'] = csv_buffer.getbuffer().nbytes
+            return response
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -1674,14 +2012,10 @@ def download_top10():
         if not column:
             return jsonify({'success': False, 'error': 'No column specified'}), 400
 
-        files = get_project_files(project_name)
         settings = load_project_settings(project_name)
 
-        if os.path.exists(files['pickle']):
-            df = pd.read_pickle(files['pickle'])
-        elif os.path.exists(files['excel']):
-            df = pd.read_excel(files['excel'])
-        else:
+        df = get_cached_dataframe(project_name)
+        if df is None:
             return jsonify({'success': False, 'error': 'No consolidated file exists'}), 404
 
         date_column = settings.get('date_column', '')
@@ -1720,27 +2054,17 @@ def download_top10():
         top10_data = top10_data[cols]
 
         # Save to Excel with summary sheet
-        import io
+        summary_df = pd.DataFrame({
+            'Rank': range(1, len(top10_values) + 1),
+            display_name: top10_values,
+            'Count': [len(top10_data[top10_data[column] == val]) for val in top10_values]
+        })
+
         output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            # Summary sheet
-            summary_df = pd.DataFrame({
-                'Rank': range(1, len(top10_values) + 1),
-                display_name: top10_values,
-                'Count': [len(top10_data[top10_data[column] == val]) for val in top10_values]
-            })
-            summary_df.to_excel(writer, index=False, sheet_name='Summary')
-
-            # Data sheet with all rows
-            top10_data.to_excel(writer, index=False, sheet_name='Data')
-
-            # Format summary sheet
-            workbook = writer.book
-            worksheet = writer.sheets['Summary']
-            for i, col in enumerate(summary_df.columns):
-                max_len = max(summary_df[col].astype(str).map(len).max(), len(col)) + 2
-                worksheet.set_column(i, i, min(max_len, 50))
-
+        _write_xlsx_raw([
+            ('Summary', _prepare_export_df(summary_df)),
+            ('Data', _prepare_export_df(top10_data))
+        ], output)
         output.seek(0)
         return send_file(
             output,
@@ -1818,14 +2142,10 @@ class Api:
                 return {'success': False, 'error': 'Save cancelled'}
 
             save_path = result[0] if isinstance(result, (tuple, list)) else result
-            files = get_project_files(project_name)
 
-            # Load data
-            if os.path.exists(files['pickle']):
-                df = pd.read_pickle(files['pickle'])
-            elif os.path.exists(files['excel']):
-                df = pd.read_excel(files['excel'])
-            else:
+            # Load data from cache
+            df = get_cached_dataframe(project_name)
+            if df is None:
                 return {'success': False, 'error': 'No data to export'}
 
             export_df = df[[c for c in df.columns if c != '_upload_id']]
@@ -1837,7 +2157,7 @@ class Api:
             else:
                 if not save_path.lower().endswith('.xlsx'):
                     save_path += '.xlsx'
-                export_df.to_excel(save_path, index=False, engine='xlsxwriter')
+                _write_excel_fast(export_df, save_path)
                 return {'success': True, 'message': f'Excel saved! ({len(export_df)} records)'}
         except Exception as e:
             return {'success': False, 'error': str(e)}
@@ -1858,14 +2178,10 @@ class Api:
                 return {'success': False, 'error': 'Save cancelled'}
 
             save_path = result[0] if isinstance(result, (tuple, list)) else result
-            files = get_project_files(project_name)
             settings = load_project_settings(project_name)
 
-            if os.path.exists(files['pickle']):
-                df = pd.read_pickle(files['pickle'])
-            elif os.path.exists(files['excel']):
-                df = pd.read_excel(files['excel'])
-            else:
+            df = get_cached_dataframe(project_name)
+            if df is None:
                 return {'success': False, 'error': 'No data to export'}
 
             date_column = settings.get('date_column', '')
@@ -1890,7 +2206,7 @@ class Api:
             else:
                 if not save_path.lower().endswith('.xlsx'):
                     save_path += '.xlsx'
-                export_df.to_excel(save_path, index=False, engine='xlsxwriter')
+                _write_excel_fast(export_df, save_path)
                 return {'success': True, 'message': f'Excel saved! ({len(export_df)} records)'}
         except Exception as e:
             return {'success': False, 'error': str(e)}

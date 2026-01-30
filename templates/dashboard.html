@@ -735,6 +735,7 @@
             <h1>Dashboard</h1>
             <div class="header-buttons">
                 <button class="btn" style="background:#e67e22;" onclick="showComparison()">Compare Periods</button>
+                <button class="btn" style="background:#16a085;" onclick="showAdvancedAnalysis()">Advanced Analysis</button>
                 <button class="settings-btn" onclick="openSettings()">Top 10 Analysis</button>
                 <a href="/" class="back-link">Back to Upload</a>
             </div>
@@ -819,6 +820,17 @@
                     </button>
                 </div>
                 <div id="comparisonTableContainer"></div>
+            </div>
+
+            <!-- Advanced Analysis Section (populated by Advanced Analysis) -->
+            <div class="card" id="advancedAnalysisSection" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h2 style="margin:0;" id="advancedAnalysisTitle">Advanced Comparative Analysis</h2>
+                    <button class="btn btn-sm" style="background:#27ae60; padding:6px 12px; font-size:0.8em;" onclick="downloadAdvancedAnalysis()" title="Download advanced analysis as Excel">
+                        ⬇ Excel
+                    </button>
+                </div>
+                <div id="advancedAnalysisTableContainer"></div>
             </div>
         </div>
     </div>
@@ -974,6 +986,8 @@
         }
 
         let dateColumns = [];
+        let numericColumns = [];
+        let lastAdvancedParams = null;
 
         async function loadColumns() {
             try {
@@ -982,6 +996,7 @@
                 if (data.success) {
                     availableColumns = data.columns;
                     dateColumns = data.date_columns || data.columns;
+                    numericColumns = data.numeric_columns || [];
                     populateColumnSelectors();
                 }
             } catch (error) {
@@ -1664,13 +1679,16 @@
 
                         // Also populate the dashboard comparison section
                         const section = document.getElementById('comparisonSection');
-                        section.style.display = 'block';
-                        document.getElementById('comparisonTitle').textContent = `Period Comparison: ${compColumn}`;
-                        document.getElementById('comparisonTableContainer').innerHTML = renderComparisonTable(compData.comparison);
+                        if (section) {
+                            section.style.display = 'block';
+                            document.getElementById('comparisonTitle').textContent = `Period Comparison: ${compColumn}`;
+                            document.getElementById('comparisonTableContainer').innerHTML = renderComparisonTable(compData.comparison);
+                        }
                     }
                 }
 
-                document.getElementById('comparisonResults').innerHTML = resultsHTML;
+                const resultsEl = document.getElementById('comparisonResults');
+                if (resultsEl) resultsEl.innerHTML = resultsHTML;
             } catch (error) {
                 alert('Error comparing periods: ' + error.message);
             }
@@ -1692,14 +1710,14 @@
                         <tbody>
                             ${comparison.map((row, i) => {
                                 const changeClass = row.change_pct > 0 ? 'change-positive' : (row.change_pct < 0 ? 'change-negative' : 'change-neutral');
-                                const changeSign = row.change_pct > 0 ? '+' : '';
+                                const changeText = `${row.change_pct > 0 ? '+' : ''}${row.change_pct}%`;
                                 return `
                                     <tr>
                                         <td>${i + 1}</td>
                                         <td>${row.value}</td>
                                         <td>${row.count1.toLocaleString()}</td>
                                         <td>${row.count2.toLocaleString()}</td>
-                                        <td class="${changeClass}">${changeSign}${row.change_pct}%</td>
+                                        <td class="${changeClass}">${changeText}</td>
                                     </tr>
                                 `;
                             }).join('')}
@@ -1737,6 +1755,265 @@
 
         function closeComparisonModal() {
             const modal = document.getElementById('comparisonModal');
+            if (modal) modal.remove();
+        }
+
+        // Advanced Comparative Analysis
+        function showAdvancedAnalysis() {
+            // Toggle: if already open, close it
+            const existing = document.getElementById('advancedAnalysisModal');
+            if (existing) {
+                existing.remove();
+                return;
+            }
+
+            const dateColumnOptions = dateColumns.map(col =>
+                `<option value="${col}" ${col === currentSettings.date_column ? 'selected' : ''}>${col}</option>`
+            ).join('');
+
+            const groupColumnOptions = availableColumns.map(col =>
+                `<option value="${col}">${col}</option>`
+            ).join('');
+
+            const valueColumnOptions = numericColumns.map(col =>
+                `<option value="${col}">${col}</option>`
+            ).join('');
+
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay active';
+            modal.id = 'advancedAnalysisModal';
+
+            modal.innerHTML = `
+                <div class="modal" style="max-width: 800px;">
+                    <div class="modal-header" style="background:#16a085;">
+                        <h2>Advanced Comparative Analysis</h2>
+                        <button class="modal-close" onclick="closeAdvancedAnalysisModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                            <div class="form-group">
+                                <label>Date Column</label>
+                                <select id="advDateColumn" style="width:100%;padding:10px;border:1px solid #dce1e5;border-radius:6px;font-size:1em;">
+                                    <option value="">-- Select Date Column --</option>
+                                    ${dateColumnOptions}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Group By Column</label>
+                                <select id="advGroupColumn" style="width:100%;padding:10px;border:1px solid #dce1e5;border-radius:6px;font-size:1em;">
+                                    <option value="">-- Select Column --</option>
+                                    ${groupColumnOptions}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Value Column (Numeric)</label>
+                                <select id="advValueColumn" style="width:100%;padding:10px;border:1px solid #dce1e5;border-radius:6px;font-size:1em;">
+                                    <option value="">-- Select Numeric Column --</option>
+                                    ${valueColumnOptions}
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Aggregation Method</label>
+                                <select id="advAggMethod" style="width:100%;padding:10px;border:1px solid #dce1e5;border-radius:6px;font-size:1em;">
+                                    <option value="sum">SUM</option>
+                                    <option value="count">COUNT</option>
+                                    <option value="average">AVERAGE</option>
+                                    <option value="min">MIN</option>
+                                    <option value="max">MAX</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="comparison-container" style="margin-top:20px;">
+                            <div class="comparison-period">
+                                <div class="comparison-header">Period 1</div>
+                                <div class="form-group">
+                                    <label>Start</label>
+                                    <input type="date" id="adv1Start" value="${minDate || ''}" min="${minDate || ''}" max="${maxDate || ''}">
+                                </div>
+                                <div class="form-group" style="margin-top:10px;">
+                                    <label>End</label>
+                                    <input type="date" id="adv1End" min="${minDate || ''}" max="${maxDate || ''}">
+                                </div>
+                            </div>
+                            <div class="comparison-period">
+                                <div class="comparison-header">Period 2</div>
+                                <div class="form-group">
+                                    <label>Start</label>
+                                    <input type="date" id="adv2Start" min="${minDate || ''}" max="${maxDate || ''}">
+                                </div>
+                                <div class="form-group" style="margin-top:10px;">
+                                    <label>End</label>
+                                    <input type="date" id="adv2End" value="${maxDate || ''}" min="${minDate || ''}" max="${maxDate || ''}">
+                                </div>
+                            </div>
+                        </div>
+                        <div id="advancedResults" style="margin-top:20px;"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeAdvancedAnalysisModal()">Close</button>
+                        <button class="btn btn-success" onclick="runAdvancedAnalysis()">Analyze</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // Toggle date picker on click for advanced modal inputs
+            modal.querySelectorAll('input[type="date"]').forEach(input => {
+                let pickerOpen = false;
+                input.addEventListener('click', (e) => {
+                    if (pickerOpen) {
+                        e.preventDefault();
+                        input.blur();
+                        pickerOpen = false;
+                    } else {
+                        pickerOpen = true;
+                    }
+                });
+                input.addEventListener('blur', () => { pickerOpen = false; });
+                input.addEventListener('change', () => { pickerOpen = false; });
+            });
+        }
+
+        async function runAdvancedAnalysis() {
+            const dateCol = document.getElementById('advDateColumn').value;
+            const groupCol = document.getElementById('advGroupColumn').value;
+            const valueCol = document.getElementById('advValueColumn').value;
+            const aggMethod = document.getElementById('advAggMethod').value;
+            const start1 = document.getElementById('adv1Start').value;
+            const end1 = document.getElementById('adv1End').value;
+            const start2 = document.getElementById('adv2Start').value;
+            const end2 = document.getElementById('adv2End').value;
+
+            if (!dateCol || !groupCol || !valueCol) {
+                alert('Please select Date Column, Group By Column, and Value Column');
+                return;
+            }
+            if (!start1 || !end1 || !start2 || !end2) {
+                alert('Please fill in all date fields for both periods');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('advancedResults');
+            resultsDiv.innerHTML = '<div style="text-align:center;padding:20px;color:#7f8c8d;"><div class="spinner"></div>Running analysis...</div>';
+
+            try {
+                const params = new URLSearchParams({
+                    date_column: dateCol, group_column: groupCol, value_column: valueCol,
+                    agg_method: aggMethod, start1, end1, start2, end2
+                });
+                const response = await fetch(`/api/advanced-analysis?${params}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    const p1Label = `${formatDate(start1)} to ${formatDate(end1)}`;
+                    const p2Label = `${formatDate(start2)} to ${formatDate(end2)}`;
+
+                    let html = `
+                        <div class="comparison-container">
+                            <div class="comparison-period" style="text-align:center;">
+                                <div class="comparison-header">Period 1</div>
+                                <div style="color:#7f8c8d;font-size:0.85em;">${p1Label}</div>
+                                <div style="font-size:1.2em;font-weight:600;margin-top:5px;">${data.period1.rows.toLocaleString()} rows</div>
+                            </div>
+                            <div class="comparison-period" style="text-align:center;">
+                                <div class="comparison-header">Period 2</div>
+                                <div style="color:#7f8c8d;font-size:0.85em;">${p2Label}</div>
+                                <div style="font-size:1.2em;font-weight:600;margin-top:5px;">${data.period2.rows.toLocaleString()} rows</div>
+                            </div>
+                        </div>
+                        <div style="text-align:center;margin-top:10px;padding:10px;background:#f8f9fa;border-radius:6px;font-size:0.9em;color:#7f8c8d;">
+                            <strong>${aggMethod.toUpperCase()}</strong> of <strong>${valueCol}</strong> grouped by <strong>${groupCol}</strong>
+                        </div>
+                    `;
+
+                    if (data.comparison.length > 0) {
+                        html += renderAdvancedTable(data.comparison, groupCol, aggMethod, p1Label, p2Label);
+                    } else {
+                        html += '<div class="no-data" style="margin-top:15px;">No data found for the selected parameters</div>';
+                    }
+
+                    resultsDiv.innerHTML = html;
+
+                    // Store params for download
+                    lastAdvancedParams = { date_column: dateCol, group_column: groupCol, value_column: valueCol, agg_method: aggMethod, start1, end1, start2, end2 };
+
+                    // Populate inline section
+                    const section = document.getElementById('advancedAnalysisSection');
+                    section.style.display = 'block';
+                    document.getElementById('advancedAnalysisTitle').textContent = `Advanced Analysis: ${aggMethod.toUpperCase()}(${valueCol}) by ${groupCol}`;
+                    document.getElementById('advancedAnalysisTableContainer').innerHTML = data.comparison.length > 0
+                        ? renderAdvancedTable(data.comparison, groupCol, aggMethod, p1Label, p2Label)
+                        : '<div class="no-data">No data found</div>';
+                } else {
+                    resultsDiv.innerHTML = `<div style="color:#e74c3c;text-align:center;padding:15px;">${data.error}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div style="color:#e74c3c;text-align:center;padding:15px;">Error: ${error.message}</div>`;
+            }
+        }
+
+        function renderAdvancedTable(comparison, groupColumn, aggMethod, p1Label, p2Label) {
+            return `
+                <div style="margin-top:15px;max-height:400px;overflow-y:auto;">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>${groupColumn}</th>
+                                <th>${aggMethod.toUpperCase()} (P1)</th>
+                                <th>${aggMethod.toUpperCase()} (P2)</th>
+                                <th>Change</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${comparison.map((row, i) => {
+                                const changeClass = row.change_pct > 0 ? 'change-positive' : (row.change_pct < 0 ? 'change-negative' : 'change-neutral');
+                                const changeText = `${row.change_pct > 0 ? '+' : ''}${row.change_pct}%`;
+                                return `
+                                    <tr>
+                                        <td>${i + 1}</td>
+                                        <td>${row.group}</td>
+                                        <td>${Number(row.value1).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2})}</td>
+                                        <td>${Number(row.value2).toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 2})}</td>
+                                        <td class="${changeClass}">${changeText}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        async function downloadAdvancedAnalysis() {
+            if (!lastAdvancedParams) {
+                showMessage('Run an advanced analysis first', 'error');
+                return;
+            }
+            const p = lastAdvancedParams;
+            try {
+                const params = new URLSearchParams(p);
+                const response = await fetch(`/api/download-advanced-analysis?${params}`);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Advanced_Analysis_${p.group_column}_${p.agg_method}_${p.start1}_to_${p.end2}.xlsx`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    showMessage('Advanced analysis downloaded', 'success');
+                } else {
+                    const data = await response.json();
+                    showMessage(data.error || 'Download failed', 'error');
+                }
+            } catch (error) {
+                showMessage('Error downloading: ' + error.message, 'error');
+            }
+        }
+
+        function closeAdvancedAnalysisModal() {
+            const modal = document.getElementById('advancedAnalysisModal');
             if (modal) modal.remove();
         }
 
