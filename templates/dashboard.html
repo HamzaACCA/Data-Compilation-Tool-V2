@@ -1,0 +1,1915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Data Analytical and Compilation Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        /* Custom Title Bar */
+        .title-bar {
+            background: #2c3e50;
+            color: white;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+        .title-bar.draggable { -webkit-app-region: drag; }
+
+        /* Make content selectable */
+        .main-content { -webkit-app-region: no-drag; user-select: text; }
+
+        .title-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .title-bar-left span {
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+
+        .project-badge {
+            background: #3498db;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 8px;
+            -webkit-app-region: no-drag;
+        }
+
+        .window-btn {
+            width: 36px;
+            height: 28px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            font-size: 14px;
+        }
+
+        .btn-minimize {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-minimize:hover {
+            background: #2980b9;
+        }
+
+        .btn-maximize {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-maximize:hover {
+            background: #219a52;
+        }
+
+        .btn-close {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-close:hover {
+            background: #c0392b;
+        }
+
+        .main-content {
+            padding: 25px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+
+        .page-header h1 {
+            color: #2c3e50;
+            font-size: 1.8em;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .back-link {
+            background: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .back-link:hover {
+            background: #2980b9;
+        }
+
+        .settings-btn {
+            background: #9b59b6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .settings-btn:hover {
+            background: #8e44ad;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #2c3e50;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            color: #7f8c8d;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            padding: 12px;
+            border: 1px solid #dce1e5;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: border-color 0.2s;
+            min-width: 200px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-weight: 500;
+        }
+
+        .btn:hover {
+            background: #2980b9;
+        }
+
+        .btn-success {
+            background: #27ae60;
+        }
+
+        .btn-success:hover {
+            background: #219a52;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card .value {
+            color: #2c3e50;
+            font-size: 2em;
+            font-weight: 600;
+        }
+
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .data-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 15px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 3px solid #3498db;
+        }
+
+        .data-item:nth-child(1) { border-left-color: #e74c3c; }
+        .data-item:nth-child(2) { border-left-color: #f39c12; }
+        .data-item:nth-child(3) { border-left-color: #27ae60; }
+        .data-item:nth-child(4) { border-left-color: #9b59b6; }
+        .data-item:nth-child(5) { border-left-color: #3498db; }
+
+        .data-name {
+            font-weight: 500;
+            color: #2c3e50;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-right: 15px;
+        }
+
+        .data-count {
+            color: #7f8c8d;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        /* Visual Bar Chart */
+        .bar-chart-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .bar-label {
+            min-width: 150px;
+            max-width: 150px;
+            font-size: 0.85em;
+            color: #2c3e50;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .bar-container {
+            flex: 1;
+            background: #ecf0f1;
+            border-radius: 4px;
+            height: 24px;
+            overflow: hidden;
+        }
+        .bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 8px;
+            font-size: 0.75em;
+            color: white;
+            font-weight: 600;
+        }
+        .bar-fill-1 { background: linear-gradient(90deg, #e74c3c, #c0392b); }
+        .bar-fill-2 { background: linear-gradient(90deg, #f39c12, #d68910); }
+        .bar-fill-3 { background: linear-gradient(90deg, #27ae60, #1e8449); }
+        .bar-fill-4 { background: linear-gradient(90deg, #9b59b6, #7d3c98); }
+        .bar-fill-5 { background: linear-gradient(90deg, #3498db, #2980b9); }
+        .bar-fill-6 { background: linear-gradient(90deg, #1abc9c, #16a085); }
+        .bar-fill-7 { background: linear-gradient(90deg, #e67e22, #ca6f1e); }
+        .bar-fill-8 { background: linear-gradient(90deg, #2c3e50, #1a252f); }
+        .bar-fill-9 { background: linear-gradient(90deg, #95a5a6, #7f8c8d); }
+        .bar-fill-10 { background: linear-gradient(90deg, #34495e, #2c3e50); }
+
+        /* Chart Type Toggle */
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .chart-type-btn {
+            background: #ecf0f1;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            color: #7f8c8d;
+        }
+        .chart-type-btn.active {
+            background: #3498db;
+            color: white;
+        }
+        .chart-type-btn:hover:not(.active) {
+            background: #dce1e5;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+            display: none;
+        }
+
+        .spinner {
+            border: 3px solid #ecf0f1;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 35px;
+            height: 35px;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d5f5e3;
+            color: #1e8449;
+            border: 1px solid #a9dfbf;
+        }
+
+        .message.error {
+            background: #fadbd8;
+            color: #922b21;
+            border: 1px solid #f5b7b1;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 30px;
+            color: #95a5a6;
+            font-style: italic;
+        }
+
+        .branding {
+            position: fixed;
+            bottom: 15px;
+            right: 15px;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            font-size: 0.85em;
+            color: #7f8c8d;
+        }
+
+        .branding strong {
+            color: #2c3e50;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px 25px;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.3em;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5em;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: #e74c3c;
+        }
+
+        .modal-body {
+            padding: 25px;
+        }
+
+        .settings-section {
+            margin-bottom: 25px;
+        }
+
+        .settings-section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        .settings-section p {
+            color: #7f8c8d;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+
+        .column-select-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .column-select-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .column-select-item label {
+            min-width: 120px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        .column-select-item select {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #dce1e5;
+            border-radius: 6px;
+            font-size: 0.95em;
+        }
+
+        .column-select-item .display-name {
+            width: 150px;
+            padding: 10px;
+            border: 1px solid #dce1e5;
+            border-radius: 6px;
+            font-size: 0.95em;
+        }
+
+        .add-column-btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+
+        .add-column-btn:hover {
+            background: #219a52;
+        }
+
+        .remove-column-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1.1em;
+        }
+
+        .remove-column-btn:hover {
+            background: #c0392b;
+        }
+
+        .modal-footer {
+            padding: 20px 25px;
+            border-top: 1px solid #ecf0f1;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        /* Dark Mode Toggle */
+        .theme-toggle { background: #34495e; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; color: white; font-size: 14px; margin-right: 10px; }
+        .theme-toggle:hover { background: #4a6278; }
+
+        /* Dark Mode Styles */
+        body.dark-mode { background: #1a1a2e; }
+        body.dark-mode .main-content { background: #1a1a2e; }
+        body.dark-mode .page-header h1 { color: #e0e0e0; }
+        body.dark-mode .card { background: #16213e; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        body.dark-mode .card h2 { color: #e0e0e0; border-color: #0f3460; }
+        body.dark-mode .stat-card { background: #16213e; }
+        body.dark-mode .stat-card h3 { color: #7f8c8d; }
+        body.dark-mode .stat-card .value { color: #e0e0e0; }
+        body.dark-mode .form-group label { color: #95a5a6; }
+        body.dark-mode .form-group input,
+        body.dark-mode .form-group select { background: #1a1a2e; border-color: #0f3460; color: #e0e0e0; }
+        body.dark-mode .data-item { background: #1a1a2e; }
+        body.dark-mode .data-name { color: #e0e0e0; }
+        body.dark-mode .data-count { color: #95a5a6; }
+        body.dark-mode .no-data { color: #7f8c8d; }
+        body.dark-mode .branding { background: #16213e; color: #7f8c8d; }
+        body.dark-mode .branding strong { color: #e0e0e0; }
+        body.dark-mode .modal { background: #16213e; }
+        body.dark-mode .modal-body { color: #e0e0e0; }
+        body.dark-mode .settings-section h3 { color: #e0e0e0; }
+        body.dark-mode .settings-section p { color: #95a5a6; }
+        body.dark-mode .column-select-item label { color: #e0e0e0; }
+        body.dark-mode .column-select-item select,
+        body.dark-mode .column-select-item .display-name { background: #1a1a2e; border-color: #0f3460; color: #e0e0e0; }
+        body.dark-mode .bar-label { color: #e0e0e0; }
+        body.dark-mode .bar-container { background: #0f3460; }
+        body.dark-mode .chart-type-btn { background: #0f3460; color: #95a5a6; }
+        body.dark-mode .chart-type-btn.active { background: #3498db; color: white; }
+
+        /* Comparison View */
+        .comparison-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .comparison-period { background: #f8f9fa; padding: 15px; border-radius: 8px; }
+        body.dark-mode .comparison-period { background: #1a1a2e; }
+        .comparison-header { font-weight: 600; color: #2c3e50; margin-bottom: 10px; }
+        body.dark-mode .comparison-header { color: #e0e0e0; }
+        .comparison-value { font-size: 1.5em; font-weight: 600; }
+        .comparison-change { font-size: 0.9em; margin-top: 5px; }
+        .comparison-change.positive { color: #27ae60; }
+        .comparison-change.negative { color: #e74c3c; }
+
+        /* Comparison Table */
+        .comparison-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9em; }
+        .comparison-table th { background: #34495e; color: white; padding: 10px; text-align: left; }
+        .comparison-table th:nth-child(n+3) { text-align: right; }
+        .comparison-table td { padding: 10px; border-bottom: 1px solid #e9ecef; }
+        .comparison-table td:nth-child(n+3) { text-align: right; }
+        .comparison-table tr:hover { background: #f8f9fa; }
+        body.dark-mode .comparison-table td { border-color: #0f3460; }
+        body.dark-mode .comparison-table tr:hover { background: #1a1a2e; }
+        .change-positive { color: #27ae60; font-weight: 500; }
+        .change-negative { color: #e74c3c; font-weight: 500; }
+        .change-neutral { color: #7f8c8d; }
+
+        /* Trend Analysis */
+        .trend-chart { padding: 20px 0; }
+        .trend-bar { display: flex; align-items: flex-end; gap: 8px; height: 200px; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; }
+        body.dark-mode .trend-bar { border-color: #0f3460; }
+        .trend-item { flex: 1; display: flex; flex-direction: column; align-items: center; }
+        .trend-fill { width: 100%; background: linear-gradient(180deg, #3498db, #2980b9); border-radius: 4px 4px 0 0; transition: height 0.5s ease; min-height: 4px; }
+        .trend-label { font-size: 0.75em; color: #7f8c8d; margin-top: 8px; text-align: center; }
+        .trend-value { font-size: 0.7em; color: #2c3e50; margin-bottom: 4px; }
+        body.dark-mode .trend-label { color: #95a5a6; }
+        body.dark-mode .trend-value { color: #e0e0e0; }
+
+        /* Date Picker Styling for better visibility */
+        input[type="date"] {
+            cursor: pointer;
+            background-color: #fff;
+            font-weight: 500;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            background-color: #3498db;
+            filter: invert(1);
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator:hover {
+            background-color: #2980b9;
+        }
+        input[type="date"]:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.3);
+        }
+        body.dark-mode input[type="date"] {
+            background-color: #1a1a2e;
+            color: #e0e0e0;
+        }
+        body.dark-mode input[type="date"]::-webkit-calendar-picker-indicator {
+            background-color: #3498db;
+        }
+
+        @media (max-width: 768px) {
+            .filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .page-header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .header-buttons {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .column-select-item {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .column-select-item label {
+                min-width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Custom Title Bar -->
+    <div class="title-bar draggable" id="titleBar">
+        <div class="title-bar-left">
+            <span>Data Analytical and Compilation Tool - Dashboard</span>
+            <span class="project-badge" id="projectBadge">Loading...</span>
+        </div>
+        <div class="window-controls">
+            <button class="theme-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode" id="themeToggle">🌙</button>
+            <button class="window-btn btn-minimize" onclick="minimizeWindow()" title="Minimize">&#8211;</button>
+            <button class="window-btn btn-maximize" onclick="maximizeWindow()" title="Maximize" id="maximizeBtn">&#9633;</button>
+            <button class="window-btn btn-close" onclick="closeWindow()" title="Close">&#10005;</button>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="page-header">
+            <h1>Dashboard</h1>
+            <div class="header-buttons">
+                <button class="btn" style="background:#e67e22;" onclick="showComparison()">Compare Periods</button>
+                <button class="settings-btn" onclick="openSettings()">Top 10 Analysis</button>
+                <a href="/" class="back-link">Back to Upload</a>
+            </div>
+        </div>
+
+        <div class="message" id="message"></div>
+
+        <div class="card">
+            <div class="filters">
+                <div class="form-group">
+                    <label for="dateColumnSelect">Date Column</label>
+                    <select id="dateColumnSelect" onchange="saveDateColumn()">
+                        <option value="">-- Select Date Column --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="startDate">Start Date</label>
+                    <input type="date" id="startDate">
+                </div>
+                <div class="form-group">
+                    <label for="endDate">End Date</label>
+                    <input type="date" id="endDate">
+                </div>
+                <button class="btn" onclick="loadDashboard()">Apply Filter</button>
+                <button class="btn btn-success" onclick="downloadFiltered()">Download Filtered Data</button>
+            </div>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading dashboard data...</p>
+        </div>
+
+        <div id="dashboardContent">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Records</h3>
+                    <div class="value" id="totalRecords">-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Date Range</h3>
+                    <div class="value" id="dateRange" style="font-size: 1em;">-</div>
+                </div>
+            </div>
+
+            <!-- Inline Trend Analysis -->
+            <div class="card" id="trendCard" style="display:none;">
+                <h2>Monthly Trend Analysis</h2>
+                <div class="trend-chart">
+                    <div class="trend-bar" id="inlineTrendBar">
+                        <div class="no-data">Loading trend data...</div>
+                    </div>
+                </div>
+                <div id="trendSummary" style="margin-top: 15px; text-align: center; color: #7f8c8d;"></div>
+            </div>
+
+            <!-- Column Analysis -->
+            <div class="card" id="columnStatsCard" style="display:none;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                    <h2 style="margin:0;">Column Analysis</h2>
+                    <button class="btn btn-sm" style="background:#27ae60; padding:6px 12px; font-size:0.8em;" onclick="downloadColumnStats()" title="Download as Excel">⬇ Excel</button>
+                </div>
+                <div style="max-height: 400px; overflow-y: auto;" id="columnStatsContent">
+                    <div class="no-data">Loading column analysis...</div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 15px; text-align: right;">
+                <button class="btn" style="background:#9b59b6;" onclick="exportPDF()">Export PDF</button>
+            </div>
+
+            <div class="chart-grid" id="chartGrid">
+                <div class="no-data">Configure columns in settings and click "Apply Filter"</div>
+            </div>
+
+            <!-- Comparison Section (populated by Compare Periods) -->
+            <div class="card" id="comparisonSection" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h2 style="margin:0;" id="comparisonTitle">Period Comparison</h2>
+                    <button class="btn btn-sm" style="background:#27ae60; padding:6px 12px; font-size:0.8em;" onclick="downloadComparison()" title="Download full comparison as Excel">
+                        ⬇ Excel
+                    </button>
+                </div>
+                <div id="comparisonTableContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Dashboard Column Settings</h2>
+                <button class="modal-close" onclick="closeSettings()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-section">
+                    <h3>Top 10 Columns</h3>
+                    <p>Select columns to display as Top 10 charts (max 6)</p>
+                    <div class="column-select-group" id="columnSelectGroup">
+                        <!-- Dynamic column selectors will be added here -->
+                    </div>
+                    <button class="add-column-btn" onclick="addColumnSelector()" id="addColumnBtn">+ Add Column</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeSettings()">Cancel</button>
+                <button class="btn btn-success" onclick="saveSettings()">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let minDate = null;
+        let maxDate = null;
+        let availableColumns = [];
+        let currentSettings = {
+            date_column: '',
+            top_columns: []
+        };
+        let currentProject = '';
+
+        // Date formatting function - DD-MMM-YYYY
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = months[date.getMonth()];
+            const year = date.getFullYear();
+            return `${day}-${month}-${year}`;
+        }
+
+        // Format month for trend (MMM-YYYY)
+        function formatMonth(monthStr) {
+            if (!monthStr) return '-';
+            // monthStr is in format "YYYY-MM"
+            const [year, month] = monthStr.split('-');
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return `${months[parseInt(month) - 1]}-${year}`;
+        }
+
+        // Window control functions
+        let isMaximized = false;
+
+        async function minimizeWindow() {
+            if (window.pywebview?.api) {
+                try {
+                    await window.pywebview.api.minimize_window();
+                } catch (e) {
+                    console.error('Minimize error:', e);
+                }
+            }
+        }
+
+        async function maximizeWindow() {
+            if (window.pywebview?.api) {
+                try {
+                    const result = await window.pywebview.api.maximize_window();
+                    if (result && result.success) {
+                        isMaximized = result.maximized;
+                        updateTitleBarDrag();
+                    }
+                } catch (e) {
+                    console.error('Maximize error:', e);
+                }
+            }
+        }
+
+        async function closeWindow() {
+            if (window.pywebview?.api) {
+                try {
+                    await window.pywebview.api.close_window();
+                } catch (e) {
+                    console.error('Close error:', e);
+                    window.close();
+                }
+            } else {
+                window.close();
+            }
+        }
+
+        function updateTitleBarDrag() {
+            const titleBar = document.getElementById('titleBar');
+            if (isMaximized) {
+                titleBar.classList.remove('draggable');
+            } else {
+                titleBar.classList.add('draggable');
+            }
+        }
+
+        // Load everything on page load
+        window.addEventListener('DOMContentLoaded', async () => {
+            // Double-click on title bar to maximize/restore
+            const titleBar = document.getElementById('titleBar');
+            titleBar.addEventListener('dblclick', (e) => {
+                if (e.target.closest('.window-controls')) return;
+                maximizeWindow();
+            });
+            // Toggle date picker on click (click to open, click again to close)
+            document.querySelectorAll('input[type="date"]').forEach(input => {
+                let pickerOpen = false;
+                input.addEventListener('click', (e) => {
+                    if (pickerOpen) {
+                        e.preventDefault();
+                        input.blur();
+                        pickerOpen = false;
+                    } else {
+                        pickerOpen = true;
+                    }
+                });
+                input.addEventListener('blur', () => { pickerOpen = false; });
+                input.addEventListener('change', () => { pickerOpen = false; });
+            });
+
+            await loadProjectInfo();
+            await loadColumns();
+            await loadSettings();
+            await loadDateRange();
+            renderChartContainers();
+            loadDashboard();
+        });
+
+        async function loadProjectInfo() {
+            try {
+                const response = await fetch('/api/projects');
+                const data = await response.json();
+                if (data.success && data.current_project) {
+                    currentProject = data.current_project;
+                    document.getElementById('projectBadge').textContent = currentProject;
+                } else {
+                    document.getElementById('projectBadge').textContent = 'No Project';
+                }
+            } catch (error) {
+                console.error('Error loading project info:', error);
+            }
+        }
+
+        let dateColumns = [];
+
+        async function loadColumns() {
+            try {
+                const response = await fetch('/api/columns');
+                const data = await response.json();
+                if (data.success) {
+                    availableColumns = data.columns;
+                    dateColumns = data.date_columns || data.columns;
+                    populateColumnSelectors();
+                }
+            } catch (error) {
+                console.error('Error loading columns:', error);
+            }
+        }
+
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/settings');
+                const data = await response.json();
+                if (data.success) {
+                    currentSettings = data.settings;
+                    document.getElementById('dateColumnSelect').value = currentSettings.date_column || '';
+                }
+            } catch (error) {
+                console.error('Error loading settings:', error);
+            }
+        }
+
+        function populateColumnSelectors() {
+            const dateSelect = document.getElementById('dateColumnSelect');
+            dateSelect.innerHTML = '<option value="">-- Select Date Column --</option>';
+
+            dateColumns.forEach(col => {
+                const option = document.createElement('option');
+                option.value = col;
+                option.textContent = col;
+                dateSelect.appendChild(option);
+            });
+
+            // Set current date column
+            if (currentSettings.date_column) {
+                dateSelect.value = currentSettings.date_column;
+            }
+
+            // Populate top column selectors
+            const group = document.getElementById('columnSelectGroup');
+            group.innerHTML = '';
+
+            if (currentSettings.top_columns && currentSettings.top_columns.length > 0) {
+                currentSettings.top_columns.forEach((col, index) => {
+                    addColumnSelector(col.column, col.display_name);
+                });
+            } else {
+                // Add one empty selector by default
+                addColumnSelector();
+            }
+        }
+
+        function addColumnSelector(selectedColumn = '', displayName = '') {
+            const group = document.getElementById('columnSelectGroup');
+            const existingSelectors = group.querySelectorAll('.column-select-item').length;
+
+            if (existingSelectors >= 6) {
+                showMessage('Maximum 6 columns allowed', 'error');
+                return;
+            }
+
+            const div = document.createElement('div');
+            div.className = 'column-select-item';
+            div.innerHTML = `
+                <label>Column ${existingSelectors + 1}:</label>
+                <select class="column-select">
+                    <option value="">-- Select Column --</option>
+                    ${availableColumns.map(col =>
+                        `<option value="${col}" ${col === selectedColumn ? 'selected' : ''}>${col}</option>`
+                    ).join('')}
+                </select>
+                <input type="text" class="display-name" placeholder="Display Name" value="${displayName}">
+                <button class="remove-column-btn" onclick="removeColumnSelector(this)">&times;</button>
+            `;
+            group.appendChild(div);
+
+            updateAddButtonVisibility();
+        }
+
+        function removeColumnSelector(btn) {
+            const group = document.getElementById('columnSelectGroup');
+            const items = group.querySelectorAll('.column-select-item');
+
+            if (items.length <= 1) {
+                showMessage('At least one column is required', 'error');
+                return;
+            }
+
+            btn.closest('.column-select-item').remove();
+
+            // Renumber labels
+            const newItems = group.querySelectorAll('.column-select-item');
+            newItems.forEach((item, index) => {
+                item.querySelector('label').textContent = `Column ${index + 1}:`;
+            });
+
+            updateAddButtonVisibility();
+        }
+
+        function updateAddButtonVisibility() {
+            const group = document.getElementById('columnSelectGroup');
+            const existingSelectors = group.querySelectorAll('.column-select-item').length;
+            document.getElementById('addColumnBtn').style.display = existingSelectors >= 6 ? 'none' : 'block';
+        }
+
+        function openSettings() {
+            document.getElementById('settingsModal').classList.add('active');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.remove('active');
+        }
+
+        async function saveSettings() {
+            const columnItems = document.querySelectorAll('.column-select-item');
+
+            const topColumns = [];
+            columnItems.forEach(item => {
+                const select = item.querySelector('.column-select');
+                const displayNameInput = item.querySelector('.display-name');
+                if (select.value) {
+                    topColumns.push({
+                        column: select.value,
+                        display_name: displayNameInput.value || select.value
+                    });
+                }
+            });
+
+            if (topColumns.length === 0) {
+                showMessage('Please select at least one column for Top 10', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        date_column: currentSettings.date_column,
+                        top_columns: topColumns
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    currentSettings.top_columns = topColumns;
+                    closeSettings();
+                    showMessage('Settings saved successfully!', 'success');
+                    renderChartContainers();
+                    loadDashboard();
+                } else {
+                    showMessage(data.error || 'Failed to save settings', 'error');
+                }
+            } catch (error) {
+                showMessage('Error saving settings: ' + error.message, 'error');
+            }
+        }
+
+        async function saveDateColumn() {
+            const dateColumn = document.getElementById('dateColumnSelect').value;
+            try {
+                const response = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        date_column: dateColumn,
+                        top_columns: currentSettings.top_columns
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    currentSettings.date_column = dateColumn;
+                    await loadDateRange();
+                    showMessage('Date column updated', 'success');
+                } else {
+                    showMessage(data.error || 'Failed to save date column', 'error');
+                }
+            } catch (error) {
+                showMessage('Error saving date column: ' + error.message, 'error');
+            }
+        }
+
+        function renderChartContainers() {
+            const grid = document.getElementById('chartGrid');
+            grid.innerHTML = '';
+
+            if (!currentSettings.top_columns || currentSettings.top_columns.length === 0) {
+                grid.innerHTML = '<div class="no-data">Configure columns in settings and click "Apply Filter"</div>';
+                return;
+            }
+
+            currentSettings.top_columns.forEach((col, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h2 style="margin:0;">Top 10 ${col.display_name}</h2>
+                        <button class="btn btn-sm" style="background:#27ae60; padding:6px 12px; font-size:0.8em;" onclick="downloadChartData('${col.column}', '${col.display_name}')" title="Download as Excel">
+                            ⬇ Excel
+                        </button>
+                    </div>
+                    <div id="chart_${index}" class="data-list">
+                        <div class="no-data">Select a date range and click "Apply Filter"</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Store chart data for download
+        let chartDataStore = {};
+
+        async function downloadChartData(column, displayName) {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (!startDate || !endDate) {
+                showMessage('Please select a date range first', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/download-top10?column=${encodeURIComponent(column)}&start_date=${startDate}&end_date=${endDate}&display_name=${encodeURIComponent(displayName)}`);
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Top10_${displayName.replace(/[^a-zA-Z0-9]/g, '_')}_${startDate}_to_${endDate}.xlsx`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    showMessage(`Downloaded Top 10 ${displayName}`, 'success');
+                } else {
+                    const data = await response.json();
+                    showMessage(data.error || 'Download failed', 'error');
+                }
+            } catch (error) {
+                showMessage('Error downloading: ' + error.message, 'error');
+            }
+        }
+
+        async function loadDateRange() {
+            try {
+                const response = await fetch('/api/date-range');
+                const data = await response.json();
+
+                if (data.success) {
+                    minDate = data.min_date;
+                    maxDate = data.max_date;
+
+                    document.getElementById('startDate').value = minDate;
+                    document.getElementById('endDate').value = maxDate;
+                    document.getElementById('startDate').min = minDate;
+                    document.getElementById('startDate').max = maxDate;
+                    document.getElementById('endDate').min = minDate;
+                    document.getElementById('endDate').max = maxDate;
+                }
+            } catch (error) {
+                console.error('Error loading date range:', error);
+            }
+        }
+
+        async function loadDashboard() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (!startDate || !endDate) {
+                return;
+            }
+
+            if (new Date(startDate) > new Date(endDate)) {
+                showMessage('Start date must be before end date', 'error');
+                return;
+            }
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('dashboardContent').style.opacity = '0.5';
+            hideMessage();
+
+            try {
+                const response = await fetch(`/api/dashboard-stats?start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    updateDashboard(data);
+                    showMessage('Dashboard updated successfully!', 'success');
+                } else {
+                    showMessage(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Error: ${error.message}`, 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboardContent').style.opacity = '1';
+            }
+        }
+
+        function updateDashboard(data) {
+            // Update stats
+            document.getElementById('totalRecords').textContent = data.total_records.toLocaleString();
+            document.getElementById('dateRange').textContent = `${formatDate(data.date_range.start)} to ${formatDate(data.date_range.end)}`;
+
+            // Update Top 10 charts
+            if (data.top_data) {
+                currentSettings.top_columns.forEach((col, index) => {
+                    const chartData = data.top_data[col.column] || {};
+                    updateChart(`chart_${index}`, chartData, col.display_name);
+                });
+            }
+
+            // Load inline trend analysis
+            loadInlineTrend();
+
+            // Load column analysis
+            loadColumnStats();
+        }
+
+        async function loadInlineTrend() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (!startDate || !endDate) return;
+
+            try {
+                const response = await fetch(`/api/trend-analysis?start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+
+                if (data.success && data.monthly_counts && data.monthly_counts.length > 0) {
+                    document.getElementById('trendCard').style.display = 'block';
+                    const maxCount = Math.max(...data.monthly_counts.map(m => m.count));
+
+                    document.getElementById('inlineTrendBar').innerHTML = data.monthly_counts.map(month => `
+                        <div class="trend-item">
+                            <div class="trend-value">${month.count.toLocaleString()}</div>
+                            <div class="trend-fill" style="height: ${(month.count / maxCount) * 100}%"></div>
+                            <div class="trend-label">${formatMonth(month.month)}</div>
+                        </div>
+                    `).join('');
+
+                    document.getElementById('trendSummary').innerHTML = `
+                        Total: <strong>${data.total.toLocaleString()}</strong> records |
+                        Average: <strong>${Math.round(data.average).toLocaleString()}</strong> per month
+                    `;
+                } else {
+                    document.getElementById('trendCard').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading inline trend:', error);
+                document.getElementById('trendCard').style.display = 'none';
+            }
+        }
+
+        let chartViewMode = 'bar'; // 'bar' or 'list'
+
+        function updateChart(chartId, chartData, label) {
+            const chart = document.getElementById(chartId);
+            if (!chart) return;
+
+            if (chartData && Object.keys(chartData).length > 0) {
+                const entries = Object.entries(chartData).sort((a, b) => b[1] - a[1]);
+                const maxValue = entries[0][1];
+
+                if (chartViewMode === 'bar') {
+                    chart.innerHTML = entries.map(([name, count], index) => {
+                        const percentage = (count / maxValue) * 100;
+                        return `
+                            <div class="bar-chart-item">
+                                <span class="bar-label" title="${name}">${name}</span>
+                                <div class="bar-container">
+                                    <div class="bar-fill bar-fill-${(index % 10) + 1}" style="width: ${percentage}%">
+                                        ${count.toLocaleString()}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    chart.innerHTML = entries.map(([name, count]) => `
+                        <div class="data-item">
+                            <span class="data-name" title="${name}">${name}</span>
+                            <span class="data-count">${count.toLocaleString()} records</span>
+                        </div>
+                    `).join('');
+                }
+            } else {
+                chart.innerHTML = `<div class="no-data">No ${label} data available for selected period</div>`;
+            }
+        }
+
+        function toggleChartView(mode) {
+            chartViewMode = mode;
+            document.querySelectorAll('.chart-type-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+            loadDashboard();
+        }
+
+        async function downloadFiltered() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (!startDate || !endDate) {
+                showMessage('Please select both start and end dates', 'error');
+                return;
+            }
+
+            if (new Date(startDate) > new Date(endDate)) {
+                showMessage('Start date must be before end date', 'error');
+                return;
+            }
+
+            // Check if running in PyWebView (has pywebview API)
+            if (window.pywebview && window.pywebview.api) {
+                try {
+                    showMessage('Preparing download...', 'success');
+                    const result = await window.pywebview.api.save_filtered_file(startDate, endDate);
+                    if (result.success) {
+                        showMessage(result.message, 'success');
+                    } else {
+                        showMessage(result.error, 'error');
+                    }
+                } catch (error) {
+                    showMessage('Error: ' + error.message, 'error');
+                }
+            } else {
+                // Fallback for browser mode - use CSV for speed
+                showMessage('Downloading filtered data (CSV)...', 'success');
+                window.location.href = `/api/download-filtered?start_date=${startDate}&end_date=${endDate}&format=csv`;
+            }
+        }
+
+        function showMessage(text, type) {
+            const message = document.getElementById('message');
+            message.textContent = text;
+            message.className = `message ${type}`;
+            message.style.display = 'block';
+
+            if (type === 'success') {
+                setTimeout(hideMessage, 3000);
+            }
+        }
+
+        function hideMessage() {
+            document.getElementById('message').style.display = 'none';
+        }
+
+        // Dark mode toggle
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            document.getElementById('themeToggle').textContent = isDark ? '☀️' : '🌙';
+            localStorage.setItem('darkMode', isDark ? 'true' : 'false');
+        }
+
+        // Load dark mode preference
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('themeToggle').textContent = '☀️';
+        }
+
+        // Trend Analysis
+        async function showTrendAnalysis() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (!startDate || !endDate) {
+                showMessage('Please select date range first', 'error');
+                return;
+            }
+
+            showMessage('Loading trend analysis...', 'success');
+
+            try {
+                const response = await fetch(`/api/trend-analysis?start_date=${startDate}&end_date=${endDate}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    displayTrendModal(data);
+                } else {
+                    showMessage(data.error || 'Failed to load trend data', 'error');
+                }
+            } catch (error) {
+                showMessage('Error loading trend analysis', 'error');
+            }
+        }
+
+        function displayTrendModal(data) {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay active';
+            modal.id = 'trendModal';
+
+            const maxCount = Math.max(...data.monthly_counts.map(m => m.count));
+
+            modal.innerHTML = `
+                <div class="modal" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h2>Monthly Trend Analysis</h2>
+                        <button class="modal-close" onclick="closeTrendModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="trend-chart">
+                            <div class="trend-bar">
+                                ${data.monthly_counts.map(month => `
+                                    <div class="trend-item">
+                                        <div class="trend-value">${month.count.toLocaleString()}</div>
+                                        <div class="trend-fill" style="height: ${(month.count / maxCount) * 100}%"></div>
+                                        <div class="trend-label">${formatMonth(month.month)}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div style="margin-top: 20px; text-align: center; color: #7f8c8d;">
+                            Total: ${data.total.toLocaleString()} records | Average: ${Math.round(data.average).toLocaleString()} per month
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeTrendModal()">Close</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function closeTrendModal() {
+            const modal = document.getElementById('trendModal');
+            if (modal) modal.remove();
+        }
+
+        // Comparison View
+        let lastComparisonParams = null;
+
+        async function showComparison() {
+            // Toggle: if already open, close it
+            const existing = document.getElementById('comparisonModal');
+            if (existing) {
+                existing.remove();
+                return;
+            }
+
+            const columnOptions = availableColumns.map(col =>
+                `<option value="${col}">${col}</option>`
+            ).join('');
+
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay active';
+            modal.id = 'comparisonModal';
+
+            modal.innerHTML = `
+                <div class="modal" style="max-width: 800px;">
+                    <div class="modal-header">
+                        <h2>Compare Periods</h2>
+                        <button class="modal-close" onclick="closeComparisonModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="comparison-container">
+                            <div class="comparison-period">
+                                <div class="comparison-header">Period 1</div>
+                                <div class="form-group">
+                                    <label>Start</label>
+                                    <input type="date" id="comp1Start" value="${minDate || ''}" min="${minDate || ''}" max="${maxDate || ''}">
+                                </div>
+                                <div class="form-group" style="margin-top:10px;">
+                                    <label>End</label>
+                                    <input type="date" id="comp1End" min="${minDate || ''}" max="${maxDate || ''}">
+                                </div>
+                            </div>
+                            <div class="comparison-period">
+                                <div class="comparison-header">Period 2</div>
+                                <div class="form-group">
+                                    <label>Start</label>
+                                    <input type="date" id="comp2Start" min="${minDate || ''}" max="${maxDate || ''}">
+                                </div>
+                                <div class="form-group" style="margin-top:10px;">
+                                    <label>End</label>
+                                    <input type="date" id="comp2End" value="${maxDate || ''}" min="${minDate || ''}" max="${maxDate || ''}">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-top:15px;">
+                            <label>Compare Column (optional)</label>
+                            <select id="compColumnSelect" style="width:100%;padding:10px;border:1px solid #dce1e5;border-radius:6px;font-size:1em;">
+                                <option value="">-- Select Column to Compare --</option>
+                                ${columnOptions}
+                            </select>
+                        </div>
+                        <div id="comparisonResults" style="margin-top: 20px;"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" onclick="closeComparisonModal()">Close</button>
+                        <button class="btn btn-success" onclick="runComparison()">Compare</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            // Toggle date picker on click for comparison modal inputs
+            modal.querySelectorAll('input[type="date"]').forEach(input => {
+                let pickerOpen = false;
+                input.addEventListener('click', (e) => {
+                    if (pickerOpen) {
+                        e.preventDefault();
+                        input.blur();
+                        pickerOpen = false;
+                    } else {
+                        pickerOpen = true;
+                    }
+                });
+                input.addEventListener('blur', () => { pickerOpen = false; });
+                input.addEventListener('change', () => { pickerOpen = false; });
+            });
+        }
+
+        async function runComparison() {
+            const period1 = {
+                start: document.getElementById('comp1Start').value,
+                end: document.getElementById('comp1End').value
+            };
+            const period2 = {
+                start: document.getElementById('comp2Start').value,
+                end: document.getElementById('comp2End').value
+            };
+
+            if (!period1.start || !period1.end || !period2.start || !period2.end) {
+                alert('Please fill in all dates');
+                return;
+            }
+
+            const compColumn = document.getElementById('compColumnSelect').value;
+
+            try {
+                const fetchPromises = [
+                    fetch(`/api/dashboard-stats?start_date=${period1.start}&end_date=${period1.end}`),
+                    fetch(`/api/dashboard-stats?start_date=${period2.start}&end_date=${period2.end}`)
+                ];
+
+                if (compColumn) {
+                    fetchPromises.push(
+                        fetch(`/api/compare-column?column=${encodeURIComponent(compColumn)}&start1=${period1.start}&end1=${period1.end}&start2=${period2.start}&end2=${period2.end}`)
+                    );
+                }
+
+                const responses = await Promise.all(fetchPromises);
+                const data1 = await responses[0].json();
+                const data2 = await responses[1].json();
+
+                const change = data2.total_records - data1.total_records;
+                const changePercent = data1.total_records > 0 ? ((change / data1.total_records) * 100).toFixed(1) : 0;
+
+                let resultsHTML = `
+                    <div class="comparison-container">
+                        <div class="comparison-period" style="text-align: center;">
+                            <div class="comparison-header">Period 1</div>
+                            <div class="comparison-value">${data1.total_records.toLocaleString()}</div>
+                            <div style="color:#7f8c8d;font-size:0.85em;">${formatDate(period1.start)} to ${formatDate(period1.end)}</div>
+                        </div>
+                        <div class="comparison-period" style="text-align: center;">
+                            <div class="comparison-header">Period 2</div>
+                            <div class="comparison-value">${data2.total_records.toLocaleString()}</div>
+                            <div style="color:#7f8c8d;font-size:0.85em;">${formatDate(period2.start)} to ${formatDate(period2.end)}</div>
+                        </div>
+                    </div>
+                    <div style="text-align:center;margin-top:15px;padding:15px;background:#f8f9fa;border-radius:8px;">
+                        <div style="font-size:1.2em;font-weight:600;">
+                            Change: <span class="${change >= 0 ? 'comparison-change positive' : 'comparison-change negative'}">
+                                ${change >= 0 ? '+' : ''}${change.toLocaleString()} (${change >= 0 ? '+' : ''}${changePercent}%)
+                            </span>
+                        </div>
+                    </div>
+                `;
+
+                if (compColumn && responses[2]) {
+                    const compData = await responses[2].json();
+                    if (compData.success && compData.comparison.length > 0) {
+                        resultsHTML += renderComparisonTable(compData.comparison);
+
+                        lastComparisonParams = {
+                            column: compColumn,
+                            start1: period1.start, end1: period1.end,
+                            start2: period2.start, end2: period2.end
+                        };
+
+                        // Also populate the dashboard comparison section
+                        const section = document.getElementById('comparisonSection');
+                        section.style.display = 'block';
+                        document.getElementById('comparisonTitle').textContent = `Period Comparison: ${compColumn}`;
+                        document.getElementById('comparisonTableContainer').innerHTML = renderComparisonTable(compData.comparison);
+                    }
+                }
+
+                document.getElementById('comparisonResults').innerHTML = resultsHTML;
+            } catch (error) {
+                alert('Error comparing periods: ' + error.message);
+            }
+        }
+
+        function renderComparisonTable(comparison) {
+            return `
+                <div style="margin-top:15px;max-height:400px;overflow-y:auto;">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Value</th>
+                                <th>Period 1</th>
+                                <th>Period 2</th>
+                                <th>Change</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${comparison.map((row, i) => {
+                                const changeClass = row.change_pct > 0 ? 'change-positive' : (row.change_pct < 0 ? 'change-negative' : 'change-neutral');
+                                const changeSign = row.change_pct > 0 ? '+' : '';
+                                return `
+                                    <tr>
+                                        <td>${i + 1}</td>
+                                        <td>${row.value}</td>
+                                        <td>${row.count1.toLocaleString()}</td>
+                                        <td>${row.count2.toLocaleString()}</td>
+                                        <td class="${changeClass}">${changeSign}${row.change_pct}%</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        async function downloadComparison() {
+            if (!lastComparisonParams) {
+                showMessage('Run a comparison with a column selected first', 'error');
+                return;
+            }
+            const p = lastComparisonParams;
+            try {
+                const response = await fetch(`/api/download-comparison?column=${encodeURIComponent(p.column)}&start1=${p.start1}&end1=${p.end1}&start2=${p.start2}&end2=${p.end2}`);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Comparison_${p.column}_${p.start1}_to_${p.end2}.xlsx`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    showMessage('Comparison downloaded', 'success');
+                } else {
+                    const data = await response.json();
+                    showMessage(data.error || 'Download failed', 'error');
+                }
+            } catch (error) {
+                showMessage('Error downloading comparison: ' + error.message, 'error');
+            }
+        }
+
+        function closeComparisonModal() {
+            const modal = document.getElementById('comparisonModal');
+            if (modal) modal.remove();
+        }
+
+        // Column Statistics (inline)
+        async function loadColumnStats() {
+            try {
+                const res = await fetch('/api/column-stats');
+                const data = await res.json();
+
+                if (data.success && data.columns.length > 0) {
+                    document.getElementById('columnStatsCard').style.display = 'block';
+                    document.getElementById('columnStatsContent').innerHTML = `
+                        <div style="overflow-x: auto;">
+                            <table style="width:100%;border-collapse:collapse;font-size:0.9em;">
+                                <thead>
+                                    <tr style="background:#34495e;color:white;">
+                                        <th style="padding:10px;text-align:left;">Column</th>
+                                        <th style="padding:10px;text-align:left;">Type</th>
+                                        <th style="padding:10px;text-align:right;">Filled %</th>
+                                        <th style="padding:10px;text-align:right;">Unique</th>
+                                        <th style="padding:10px;text-align:center;">Duplicates</th>
+                                        <th style="padding:10px;text-align:left;">Sample Values</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${data.columns.map(col => {
+                                        const hasDuplicates = col.unique_count < data.total_rows;
+                                        return `
+                                        <tr style="border-bottom:1px solid #e9ecef;">
+                                            <td style="padding:10px;font-weight:500;">${col.name}</td>
+                                            <td style="padding:10px;color:#7f8c8d;">${col.dtype}</td>
+                                            <td style="padding:10px;text-align:right;">
+                                                <div style="background:#ecf0f1;border-radius:4px;height:20px;width:80px;display:inline-block;overflow:hidden;">
+                                                    <div style="background:${col.fill_pct > 80 ? '#27ae60' : col.fill_pct > 50 ? '#f39c12' : '#e74c3c'};height:100%;width:${col.fill_pct}%;"></div>
+                                                </div>
+                                                <span style="margin-left:5px;">${col.fill_pct}%</span>
+                                            </td>
+                                            <td style="padding:10px;text-align:right;">${col.unique_count.toLocaleString()}</td>
+                                            <td style="padding:10px;text-align:center;">
+                                                <span style="padding:4px 10px;border-radius:4px;font-weight:500;background:${hasDuplicates ? '#fadbd8' : '#d5f5e3'};color:${hasDuplicates ? '#922b21' : '#1e8449'};">
+                                                    ${hasDuplicates ? 'Yes' : 'No'}
+                                                </span>
+                                            </td>
+                                            <td style="padding:10px;font-size:0.85em;color:#7f8c8d;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${col.sample_values}">${col.sample_values}</td>
+                                        </tr>
+                                    `}).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('columnStatsCard').style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error loading column stats:', error);
+            }
+        }
+
+        async function downloadColumnStats() {
+            try {
+                const response = await fetch('/api/download-column-stats');
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    const disposition = response.headers.get('Content-Disposition');
+                    a.download = disposition ? disposition.split('filename=')[1].replace(/"/g, '') : 'Column_Analysis.xlsx';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    showMessage('Column analysis downloaded!', 'success');
+                } else {
+                    showMessage('Failed to download column analysis', 'danger');
+                }
+            } catch (error) {
+                showMessage('Error downloading: ' + error.message, 'danger');
+            }
+        }
+
+        // PDF Export
+        function exportPDF() {
+            showMessage('Generating PDF report...', 'success');
+
+            // Create printable version
+            const printWindow = window.open('', '_blank');
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const totalRecords = document.getElementById('totalRecords').textContent;
+
+            let chartsHTML = '';
+            currentSettings.top_columns.forEach((col, index) => {
+                const chartEl = document.getElementById(`chart_${index}`);
+                if (chartEl) {
+                    chartsHTML += `
+                        <div style="margin-bottom:30px;page-break-inside:avoid;">
+                            <h3 style="color:#2c3e50;margin-bottom:15px;">Top 10 ${col.display_name}</h3>
+                            ${chartEl.innerHTML}
+                        </div>
+                    `;
+                }
+            });
+
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Dashboard Report - ${currentProject}</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #2c3e50; }
+                        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+                        h2 { color: #7f8c8d; margin-top: 30px; }
+                        .summary { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+                        .summary-item { display: inline-block; margin-right: 40px; }
+                        .summary-label { color: #7f8c8d; font-size: 0.9em; }
+                        .summary-value { font-size: 1.5em; font-weight: 600; color: #2c3e50; }
+                        .bar-chart-item { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+                        .bar-label { min-width: 150px; font-size: 0.85em; }
+                        .bar-container { flex: 1; background: #ecf0f1; border-radius: 4px; height: 20px; }
+                        .bar-fill { height: 100%; border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; font-size: 0.75em; color: white; }
+                        .bar-fill-1 { background: #e74c3c; }
+                        .bar-fill-2 { background: #f39c12; }
+                        .bar-fill-3 { background: #27ae60; }
+                        .bar-fill-4 { background: #9b59b6; }
+                        .bar-fill-5 { background: #3498db; }
+                        .bar-fill-6 { background: #1abc9c; }
+                        .bar-fill-7 { background: #e67e22; }
+                        .bar-fill-8 { background: #2c3e50; }
+                        .bar-fill-9 { background: #95a5a6; }
+                        .bar-fill-10 { background: #34495e; }
+                        .data-item { display: flex; justify-content: space-between; padding: 8px 12px; background: #f8f9fa; border-left: 3px solid #3498db; margin-bottom: 5px; }
+                        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ecf0f1; color: #7f8c8d; font-size: 0.85em; }
+                        @media print { body { padding: 20px; } }
+                    </style>
+                </head>
+                <body>
+                    <h1>Dashboard Report</h1>
+                    <p style="color:#7f8c8d;">Project: <strong>${currentProject}</strong></p>
+
+                    <div class="summary">
+                        <div class="summary-item">
+                            <div class="summary-label">Date Range</div>
+                            <div class="summary-value">${formatDate(startDate)} to ${formatDate(endDate)}</div>
+                        </div>
+                        <div class="summary-item">
+                            <div class="summary-label">Total Records</div>
+                            <div class="summary-value">${totalRecords}</div>
+                        </div>
+                    </div>
+
+                    <h2>Data Analysis</h2>
+                    ${chartsHTML}
+
+                    <div class="footer">
+                        <p>Generated on ${new Date().toLocaleString()} | Data Analytical and Compilation Tool</p>
+                        <p>Prepared by Hamza Yahya - Internal Audit</p>
+                    </div>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.focus();
+
+            setTimeout(() => {
+                printWindow.print();
+            }, 500);
+        }
+    </script>
+
+    <!-- Branding -->
+    <div class="branding">
+        Prepared by <strong>Hamza Yahya</strong> - Internal Audit
+    </div>
+</body>
+</html>

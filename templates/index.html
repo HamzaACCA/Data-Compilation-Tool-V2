@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Analytical and Compilation Tool</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #f5f7fa; min-height: 100vh; }
+
+        .title-bar {
+            background: #2c3e50; color: white; padding: 12px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            user-select: none;
+        }
+        .title-bar.draggable { -webkit-app-region: drag; }
+        .title-bar-left span { font-size: 1.1em; font-weight: 500; }
+        .window-controls { display: flex; gap: 8px; -webkit-app-region: no-drag; }
+
+        /* Make content selectable */
+        .app-container { -webkit-app-region: no-drag; user-select: text; }
+        .window-btn {
+            width: 36px; height: 28px; border: none; border-radius: 4px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s; font-size: 14px;
+        }
+        .btn-minimize { background: #3498db; color: white; }
+        .btn-minimize:hover { background: #2980b9; }
+        .btn-maximize { background: #27ae60; color: white; }
+        .btn-maximize:hover { background: #219a52; }
+        .btn-close { background: #e74c3c; color: white; }
+        .btn-close:hover { background: #c0392b; }
+
+        /* Two-column layout */
+        .app-container { display: flex; height: calc(100vh - 52px); }
+
+        /* Left Panel - Upload Log */
+        .left-panel {
+            width: 320px; background: white; border-right: 1px solid #e0e0e0;
+            display: flex; flex-direction: column; flex-shrink: 0;
+            margin-left: -320px; transition: margin-left 0.3s ease;
+        }
+        .left-panel.visible { margin-left: 0; }
+        .panel-toggle {
+            position: fixed; left: 0; top: 50%; transform: translateY(-50%);
+            z-index: 100; background: #34495e; color: white; border: none;
+            padding: 12px 6px; cursor: pointer; border-radius: 0 6px 6px 0;
+            font-size: 0.85em; writing-mode: vertical-rl; text-orientation: mixed;
+            letter-spacing: 1px; transition: left 0.3s ease; box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+        }
+        .panel-toggle:hover { background: #2c3e50; }
+        .panel-toggle.shifted { left: 320px; }
+        .panel-header {
+            background: #34495e; color: white; padding: 15px 20px;
+            font-weight: 600; font-size: 1em;
+        }
+        .upload-log {
+            flex: 1; overflow-y: auto; padding: 15px;
+        }
+        .log-item {
+            background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px;
+            padding: 12px 15px; margin-bottom: 10px; position: relative;
+        }
+        .log-item:hover { border-color: #3498db; }
+        .log-file-name {
+            font-weight: 600; color: #2c3e50; font-size: 0.9em;
+            word-break: break-all; margin-bottom: 5px; padding-right: 30px;
+        }
+        .log-details {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 0.8em; color: #7f8c8d;
+        }
+        .log-date { }
+        .log-rows { background: #e8f4fc; padding: 2px 8px; border-radius: 4px; color: #2980b9; }
+        .log-delete {
+            position: absolute; top: 10px; right: 10px;
+            background: #e74c3c; color: white; border: none;
+            width: 24px; height: 24px; border-radius: 4px;
+            cursor: pointer; font-size: 12px; display: flex;
+            align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.2s;
+        }
+        .log-item:hover .log-delete { opacity: 1; }
+        .log-delete:hover { background: #c0392b; }
+        .log-empty {
+            text-align: center; color: #95a5a6; padding: 30px 15px;
+            font-style: italic; font-size: 0.9em;
+        }
+        .log-loading {
+            text-align: center; padding: 20px; color: #7f8c8d;
+        }
+
+        /* Right Panel - Main Content */
+        .right-panel { flex: 1; overflow-y: auto; padding: 25px; }
+        .main-content { max-width: 800px; margin: 0 auto; }
+        .page-header { text-align: center; margin-bottom: 25px; }
+        .page-header h1 { color: #2c3e50; font-size: 1.8em; margin-bottom: 5px; }
+        .page-header p { color: #7f8c8d; }
+
+        .card { background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); padding: 20px; margin-bottom: 20px; }
+        .card h2 { color: #2c3e50; font-size: 1.1em; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0; }
+
+        /* Project Selector */
+        .project-selector { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .project-select { flex: 1; min-width: 200px; padding: 10px; border: 1px solid #dce1e5; border-radius: 6px; font-size: 1em; }
+        .project-info { background: #e8f4fc; padding: 10px 15px; border-radius: 6px; margin-top: 10px; color: #2c3e50; }
+
+        /* Stats Grid */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+        .stat-card { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e9ecef; }
+        .stat-label { color: #7f8c8d; font-size: 0.8em; margin-bottom: 5px; text-transform: uppercase; }
+        .stat-value { color: #2c3e50; font-size: 1.3em; font-weight: 600; }
+
+        /* Upload Area */
+        .upload-area {
+            border: 2px dashed #bdc3c7; border-radius: 10px; padding: 40px 20px;
+            text-align: center; transition: all 0.3s; cursor: pointer; background: #fafbfc;
+        }
+        .upload-area:hover { border-color: #3498db; background: #f0f7fc; }
+        .upload-area.dragover { border-color: #3498db; background: #e8f4fc; }
+        .upload-icon { font-size: 2.5em; margin-bottom: 10px; }
+        .upload-text { font-size: 1em; color: #2c3e50; margin-bottom: 5px; }
+        .upload-subtext { color: #95a5a6; font-size: 0.85em; }
+        #fileInput { display: none; }
+
+        /* Buttons */
+        .btn {
+            background: #3498db; color: white; border: none; padding: 12px 20px;
+            border-radius: 6px; font-size: 0.95em; cursor: pointer; transition: background 0.2s; font-weight: 500;
+        }
+        .btn:hover { background: #2980b9; }
+        .btn:disabled { background: #bdc3c7; cursor: not-allowed; }
+        .btn-secondary { background: #95a5a6; }
+        .btn-secondary:hover { background: #7f8c8d; }
+        .btn-danger { background: #e74c3c; }
+        .btn-danger:hover { background: #c0392b; }
+        .btn-success { background: #27ae60; }
+        .btn-success:hover { background: #219a52; }
+        .btn-sm { padding: 8px 15px; font-size: 0.85em; }
+        .btn-full { width: 100%; margin-top: 12px; }
+
+        .button-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
+
+        /* Forms */
+        .form-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .form-row input { flex: 1; padding: 10px; border: 1px solid #dce1e5; border-radius: 6px; }
+        .form-row input:focus { outline: none; border-color: #3498db; }
+
+        /* Messages */
+        .message { padding: 12px; border-radius: 6px; margin-top: 15px; display: none; }
+        .message.success { background: #d5f5e3; color: #1e8449; border: 1px solid #a9dfbf; }
+        .message.error { background: #fadbd8; color: #922b21; border: 1px solid #f5b7b1; }
+
+        .loading { display: none; text-align: center; margin-top: 15px; }
+        .spinner { border: 3px solid #ecf0f1; border-top: 3px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 0.8s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Progress Bar */
+        .progress-container { display: none; margin-top: 15px; }
+        .progress-bar { background: #ecf0f1; border-radius: 10px; height: 20px; overflow: hidden; position: relative; }
+        .progress-fill { background: linear-gradient(90deg, #3498db, #2ecc71); height: 100%; width: 0%; transition: width 0.3s ease; border-radius: 10px; }
+        .progress-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 0.8em; font-weight: 600; color: #2c3e50; }
+        .progress-status { margin-top: 8px; font-size: 0.85em; color: #7f8c8d; text-align: center; }
+
+        .no-data { text-align: center; color: #95a5a6; padding: 15px; font-style: italic; }
+        .selected-file { background: #e8f4fc; padding: 12px; border-radius: 6px; margin-top: 12px; display: none; border: 1px solid #bee5f7; word-break: break-all; }
+
+        .branding { position: fixed; bottom: 10px; right: 10px; background: white; padding: 8px 12px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 0.8em; color: #7f8c8d; }
+        .branding strong { color: #2c3e50; }
+
+        /* Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; padding: 25px; border-radius: 10px; width: 90%; max-width: 400px; }
+        .modal-content h3 { margin-bottom: 15px; color: #2c3e50; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 15px; }
+        .modal-actions .btn { flex: 1; }
+
+
+        /* Audit Log */
+        .audit-modal { max-width: 600px; max-height: 70vh; }
+        .audit-list { max-height: 400px; overflow-y: auto; }
+        .audit-item { padding: 10px 15px; border-bottom: 1px solid #e9ecef; }
+        .audit-item:last-child { border-bottom: none; }
+        .audit-action { font-weight: 600; color: #2c3e50; }
+        .audit-time { font-size: 0.8em; color: #95a5a6; }
+        .audit-details { font-size: 0.85em; color: #7f8c8d; margin-top: 3px; }
+        body.dark-mode .audit-item { border-color: #0f3460; }
+        body.dark-mode .audit-action { color: #e0e0e0; }
+        body.dark-mode .audit-details { color: #95a5a6; }
+
+        /* Column Mapping Modal */
+        .mapping-modal { max-width: 700px; }
+        .mapping-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        .mapping-table th { background: #34495e; color: white; padding: 10px; text-align: left; }
+        .mapping-table td { padding: 10px; border-bottom: 1px solid #e9ecef; }
+        .mapping-table select { width: 100%; padding: 8px; border: 1px solid #dce1e5; border-radius: 4px; }
+        body.dark-mode .mapping-table td { border-color: #0f3460; }
+        body.dark-mode .mapping-table select { background: #1a1a2e; border-color: #0f3460; color: #e0e0e0; }
+
+        /* Toast Notifications */
+        .toast-container { position: fixed; top: 70px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
+        .toast { padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); animation: slideIn 0.3s ease; max-width: 350px; }
+        .toast.success { background: #27ae60; color: white; }
+        .toast.error { background: #e74c3c; color: white; }
+        .toast.info { background: #3498db; color: white; }
+        .toast.warning { background: #f39c12; color: white; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+
+        /* Data Summary Stats */
+        .summary-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 8px; }
+        body.dark-mode .summary-stats { background: #1a1a2e; }
+        .summary-stat { text-align: center; }
+        .summary-stat-value { font-size: 1.2em; font-weight: 600; color: #2c3e50; }
+        body.dark-mode .summary-stat-value { color: #e0e0e0; }
+        .summary-stat-label { font-size: 0.75em; color: #7f8c8d; text-transform: uppercase; }
+
+        /* Recent Projects */
+        .recent-projects { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+        .recent-project-wrapper { position: relative; display: inline-flex; }
+        .recent-project-btn { background: #ecf0f1; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.85em; color: #2c3e50; transition: all 0.2s; }
+        .recent-project-btn:hover { background: #3498db; color: white; }
+        .recent-project-btn.active { background: #3498db; color: white; font-weight: 600; }
+        .recent-project-delete { position: absolute; top: -6px; right: -6px; background: #e74c3c; color: white; border: none; width: 16px; height: 16px; border-radius: 50%; cursor: pointer; font-size: 10px; line-height: 16px; text-align: center; padding: 0; opacity: 0; transition: opacity 0.2s; z-index: 1; }
+        .recent-project-wrapper:hover .recent-project-delete { opacity: 1; }
+        .recent-project-delete:hover { background: #c0392b; }
+        body.dark-mode .recent-project-btn { background: #0f3460; color: #e0e0e0; }
+        body.dark-mode .recent-project-btn:hover { background: #3498db; }
+        body.dark-mode .recent-project-btn.active { background: #3498db; color: white; }
+
+        /* Performance Monitor */
+        .perf-monitor { position: fixed; bottom: 50px; left: 10px; background: white; padding: 8px 12px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); font-size: 0.75em; color: #7f8c8d; z-index: 100; }
+        body.dark-mode .perf-monitor { background: #16213e; }
+        .perf-indicator { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+        .perf-good { background: #27ae60; }
+        .perf-warning { background: #f39c12; }
+        .perf-bad { background: #e74c3c; }
+
+        /* Background Task Indicator */
+        .task-indicator { position: fixed; bottom: 50px; right: 20px; background: #3498db; color: white; padding: 10px 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-size: 0.85em; display: none; z-index: 100; }
+        .task-indicator.active { display: flex; align-items: center; gap: 10px; }
+        .task-spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; }
+
+        /* Lazy Load More Button */
+        .load-more-btn { width: 100%; padding: 10px; background: #ecf0f1; border: none; border-radius: 6px; cursor: pointer; color: #7f8c8d; font-size: 0.85em; margin-top: 10px; }
+        .load-more-btn:hover { background: #dce1e5; }
+        body.dark-mode .load-more-btn { background: #0f3460; color: #95a5a6; }
+
+        /* Search box in upload log */
+        .log-search { padding: 10px 15px; border-bottom: 1px solid #e0e0e0; }
+        .log-search input { width: 100%; padding: 8px 12px; border: 1px solid #dce1e5; border-radius: 6px; font-size: 0.9em; }
+        .log-search input:focus { outline: none; border-color: #3498db; }
+
+        /* Dark Mode Toggle */
+        .theme-toggle { background: #34495e; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; color: white; font-size: 14px; margin-right: 10px; }
+        .theme-toggle:hover { background: #4a6278; }
+
+        /* Dark Mode Styles */
+        body.dark-mode { background: #1a1a2e; }
+        body.dark-mode .left-panel { background: #16213e; border-color: #0f3460; }
+        body.dark-mode .panel-toggle { background: #0f3460; }
+        body.dark-mode .panel-toggle:hover { background: #1a1a2e; }
+        body.dark-mode .panel-header { background: #0f3460; }
+        body.dark-mode .log-search input { background: #1a1a2e; border-color: #0f3460; color: #e0e0e0; }
+        body.dark-mode .log-item { background: #1a1a2e; border-color: #0f3460; }
+        body.dark-mode .log-item:hover { border-color: #3498db; }
+        body.dark-mode .log-file-name { color: #e0e0e0; }
+        body.dark-mode .log-details { color: #95a5a6; }
+        body.dark-mode .right-panel { background: #1a1a2e; }
+        body.dark-mode .card { background: #16213e; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+        body.dark-mode .card h2 { color: #e0e0e0; border-color: #0f3460; }
+        body.dark-mode .page-header h1 { color: #e0e0e0; }
+        body.dark-mode .page-header p { color: #7f8c8d; }
+        body.dark-mode .project-select { background: #1a1a2e; border-color: #0f3460; color: #e0e0e0; }
+        body.dark-mode .project-info { background: #0f3460; color: #e0e0e0; }
+        body.dark-mode .stat-card { background: #1a1a2e; border-color: #0f3460; }
+        body.dark-mode .stat-label { color: #7f8c8d; }
+        body.dark-mode .stat-value { color: #e0e0e0; }
+        body.dark-mode .upload-area { background: #1a1a2e; border-color: #0f3460; }
+        body.dark-mode .upload-area:hover { border-color: #3498db; background: #16213e; }
+        body.dark-mode .upload-text { color: #e0e0e0; }
+        body.dark-mode .selected-file { background: #0f3460; border-color: #3498db; color: #e0e0e0; }
+        body.dark-mode .form-row input { background: #1a1a2e; border-color: #0f3460; color: #e0e0e0; }
+        body.dark-mode .modal-content { background: #16213e; }
+        body.dark-mode .modal-content h3 { color: #e0e0e0; }
+        body.dark-mode .modal-content p { color: #b0b0b0; }
+        body.dark-mode .no-data { color: #7f8c8d; }
+        body.dark-mode .branding { background: #16213e; color: #7f8c8d; }
+        body.dark-mode .branding strong { color: #e0e0e0; }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .app-container { flex-direction: column; }
+            .left-panel { width: 100%; height: 200px; border-right: none; border-bottom: 1px solid #e0e0e0; margin-left: 0; margin-top: -200px; transition: margin-top 0.3s ease; }
+            .left-panel.visible { margin-top: 0; }
+            .panel-toggle { writing-mode: horizontal-tb; top: auto; bottom: 10px; left: 50%; transform: translateX(-50%); border-radius: 6px; padding: 8px 16px; }
+            .panel-toggle.shifted { left: 50%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="title-bar draggable" id="titleBar">
+        <div class="title-bar-left"><span>Data Analytical and Compilation Tool</span></div>
+        <div class="window-controls">
+            <button class="theme-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode" id="themeToggle">🌙</button>
+            <button class="window-btn btn-minimize" onclick="minimizeWindow()" title="Minimize">&#8211;</button>
+            <button class="window-btn btn-maximize" onclick="maximizeWindow()" title="Maximize" id="maximizeBtn">&#9633;</button>
+            <button class="window-btn btn-close" onclick="closeWindow()" title="Close">&#10005;</button>
+        </div>
+    </div>
+
+    <button class="panel-toggle" id="panelToggle" onclick="toggleUploadHistory()">Upload History</button>
+
+    <div class="app-container">
+        <!-- Left Panel - Upload Log -->
+        <div class="left-panel" id="leftPanel">
+            <div class="panel-header">Upload History</div>
+            <div class="log-search">
+                <input type="text" id="logSearchInput" placeholder="Search uploads..." oninput="filterUploadLog()">
+            </div>
+            <div class="upload-log" id="uploadLog">
+                <div class="log-empty">No files uploaded yet</div>
+            </div>
+        </div>
+
+        <!-- Right Panel - Main Content -->
+        <div class="right-panel">
+            <div class="main-content">
+                <div class="page-header">
+                    <h1>Data Analytical and Compilation Tool</h1>
+                    <p>Smart Analytical Tool, Multi-Project Support - Consolidate different file types</p>
+                </div>
+
+                <!-- Project Management -->
+                <div class="card">
+                    <h2>Project Management</h2>
+                    <div class="project-selector">
+                        <select class="project-select" id="projectSelect" onchange="selectProject()">
+                            <option value="">-- Select a Project --</option>
+                        </select>
+                        <button class="btn btn-success btn-sm" onclick="showCreateProject()">+ New Project</button>
+                        <button class="btn btn-danger btn-sm" onclick="showDeleteProject()" title="Delete current project">Delete</button>
+                    </div>
+                    <div class="recent-projects" id="recentProjects"></div>
+                    <div class="project-info" id="projectInfo" style="display: none;"></div>
+                </div>
+
+                <!-- Stats -->
+                <div class="card" id="statsCard">
+                    <h2>Current Project Statistics <button class="btn btn-sm" style="float:right;background:#1abc9c;padding:5px 10px;font-size:0.8em;" onclick="showDataSummary()">View Summary</button></h2>
+                    <div class="stats-grid" id="statsGrid">
+                        <div class="no-data">Select or create a project to get started</div>
+                    </div>
+                </div>
+
+                <!-- Upload -->
+                <div class="card" id="uploadCard">
+                    <h2>Upload Files</h2>
+                    <div class="upload-area" id="uploadArea">
+                        <div class="upload-icon">📁</div>
+                        <div class="upload-text">Click or drag files here to upload</div>
+                        <div class="upload-subtext">Supported: .xlsx, .xls, .csv - Multiple files supported</div>
+                        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" multiple>
+                    </div>
+                    <div class="selected-file" id="selectedFile"></div>
+                    <button class="btn btn-full" id="uploadBtn" disabled>Upload & Combine</button>
+
+                    <div class="button-group" style="grid-template-columns: repeat(3, 1fr);">
+                        <button class="btn btn-success" onclick="window.location.href='/dashboard'">Dashboard</button>
+                        <button class="btn btn-secondary" id="downloadBtn">Download</button>
+                        <button class="btn" style="background:#f39c12;" id="undoBtn" title="Undo last upload">Undo</button>
+                    </div>
+                    <div class="button-group" style="grid-template-columns: repeat(1, 1fr); margin-top: 10px;">
+                        <button class="btn btn-danger" id="resetBtn">Reset Data</button>
+                    </div>
+
+                    <div class="progress-container" id="progressContainer">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                            <div class="progress-text" id="progressText">0%</div>
+                        </div>
+                        <div class="progress-status" id="progressStatus">Preparing upload...</div>
+                    </div>
+                    <div class="loading" id="loading"><div class="spinner"></div><p style="margin-top:10px;color:#7f8c8d;">Processing...</p></div>
+                    <div class="message" id="message"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Project Modal -->
+    <div class="modal" id="createProjectModal">
+        <div class="modal-content">
+            <h3>Create New Project</h3>
+            <div class="form-row"><input type="text" id="newProjectName" placeholder="Project Name (e.g., Sales Data 2024)"></div>
+            <div class="form-row"><input type="text" id="newProjectDesc" placeholder="Description (optional)"></div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="hideCreateProject()">Cancel</button>
+                <button class="btn btn-success" onclick="createProject()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div class="modal" id="confirmDeleteModal">
+        <div class="modal-content">
+            <h3>Delete Upload</h3>
+            <p id="deleteConfirmText">Are you sure you want to delete this upload? The data will be removed from the consolidated file.</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="hideDeleteConfirm()">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmDeleteUpload()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Confirmation Modal -->
+    <div class="modal" id="confirmUploadModal">
+        <div class="modal-content">
+            <h3>Confirm Upload</h3>
+            <p id="confirmUploadText">Are you sure you want to upload this file?</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="hideUploadConfirm()">Cancel</button>
+                <button class="btn btn-success" onclick="proceedUpload()">Upload</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Log Modal -->
+    <div class="modal" id="auditModal">
+        <div class="modal-content audit-modal">
+            <h3>Activity Log</h3>
+            <div class="audit-list" id="auditList">
+                <div class="log-loading">Loading...</div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="hideAuditLog()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Column Mapping Modal -->
+    <div class="modal" id="mappingModal">
+        <div class="modal-content mapping-modal">
+            <h3>Column Mapping</h3>
+            <p style="color:#7f8c8d;margin-bottom:15px;">Map columns from your file to existing columns in the project.</p>
+            <table class="mapping-table">
+                <thead>
+                    <tr><th>Your File Column</th><th>Map To</th></tr>
+                </thead>
+                <tbody id="mappingTableBody"></tbody>
+            </table>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="hideMappingModal()">Cancel</button>
+                <button class="btn btn-success" onclick="applyMapping()">Apply & Upload</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Data Summary Modal -->
+    <div class="modal" id="summaryModal">
+        <div class="modal-content" style="max-width:700px;">
+            <h3>Data Summary</h3>
+            <div id="summaryContent">
+                <div class="log-loading">Loading...</div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="hideSummaryModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Undo Confirmation Modal -->
+    <div class="modal" id="undoConfirmModal">
+        <div class="modal-content">
+            <h3>Undo Last Upload</h3>
+            <p id="undoConfirmText">Are you sure you want to undo this upload?</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="hideUndoConfirm()">Cancel</button>
+                <button class="btn" style="background:#f39c12;" onclick="confirmUndo()">Undo</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Project Modal -->
+    <div class="modal" id="deleteProjectModal">
+        <div class="modal-content">
+            <h3>Delete Project</h3>
+            <p id="deleteProjectText">Are you sure you want to delete this project? All data will be permanently removed.</p>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="hideDeleteProject()">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmDeleteProject()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Performance Monitor -->
+    <div class="perf-monitor" id="perfMonitor" onclick="showPerformanceDetails()">
+        <span class="perf-indicator perf-good" id="perfIndicator"></span>
+        <span id="perfText">Cache: 0 MB</span>
+    </div>
+
+    <!-- Background Task Indicator -->
+    <div class="task-indicator" id="taskIndicator">
+        <div class="task-spinner"></div>
+        <span id="taskText">Processing...</span>
+    </div>
+
+    <div class="branding" style="cursor: pointer;" onclick="showAuditLog()" title="View Activity Log">Prepared by <strong>Hamza Yahya</strong> - Internal Audit | <span style="color:#3498db;">Activity Log</span></div>
+
+    <script>
+        let currentFiles = [];
+        let deleteUploadId = null;
+        let projectsData = [];
+
+        function toggleUploadHistory() {
+            const panel = document.getElementById('leftPanel');
+            const toggle = document.getElementById('panelToggle');
+            panel.classList.toggle('visible');
+            toggle.classList.toggle('shifted');
+        }
+
+        // Date formatting function - DD-MMM-YYYY HH:MM
+        function formatDateTime(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr.replace(' ', 'T'));
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = months[date.getMonth()];
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const mins = String(date.getMinutes()).padStart(2, '0');
+            return `${day}-${month}-${year} ${hours}:${mins}`;
+        }
+
+        // Window controls
+        let isMaximized = false;
+
+        async function minimizeWindow() {
+            if (window.pywebview?.api) {
+                try {
+                    await window.pywebview.api.minimize_window();
+                } catch (e) {
+                    console.error('Minimize error:', e);
+                }
+            }
+        }
+
+        async function maximizeWindow() {
+            if (window.pywebview?.api) {
+                try {
+                    const result = await window.pywebview.api.maximize_window();
+                    if (result && result.success) {
+                        isMaximized = result.maximized;
+                        updateTitleBarDrag();
+                    }
+                } catch (e) {
+                    console.error('Maximize error:', e);
+                }
+            }
+        }
+
+        async function closeWindow() {
+            if (window.pywebview?.api) {
+                try {
+                    await window.pywebview.api.close_window();
+                } catch (e) {
+                    console.error('Close error:', e);
+                    window.close();
+                }
+            } else {
+                window.close();
+            }
+        }
+
+        function updateTitleBarDrag() {
+            const titleBar = document.getElementById('titleBar');
+            if (isMaximized) {
+                titleBar.classList.remove('draggable');
+            } else {
+                titleBar.classList.add('draggable');
+            }
+        }
+
+        // Double-click on title bar to maximize/restore
+        document.addEventListener('DOMContentLoaded', () => {
+            const titleBar = document.getElementById('titleBar');
+            titleBar.addEventListener('dblclick', (e) => {
+                // Don't trigger if clicking on buttons
+                if (e.target.closest('.window-controls')) return;
+                maximizeWindow();
+            });
+        });
+
+        // Dark mode toggle
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            document.getElementById('themeToggle').textContent = isDark ? '☀️' : '🌙';
+            localStorage.setItem('darkMode', isDark ? 'true' : 'false');
+        }
+
+        // Load dark mode preference
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+            document.getElementById('themeToggle').textContent = '☀️';
+        }
+
+        // Load on start
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProjects();
+            setupUpload();
+        });
+
+        // Project Management
+        async function loadProjects() {
+            try {
+                const res = await fetch('/api/projects');
+                const data = await res.json();
+                const select = document.getElementById('projectSelect');
+                select.innerHTML = '<option value="">-- Select a Project --</option>';
+                data.projects.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.name;
+                    opt.textContent = p.name;
+                    if (p.name === data.current_project) opt.selected = true;
+                    select.appendChild(opt);
+                });
+                if (data.current_project) {
+                    loadStats();
+                    loadUploadLog();
+                    document.getElementById('projectInfo').style.display = 'block';
+                    document.getElementById('projectInfo').textContent = `Active: ${data.current_project}`;
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        function showProjectInfo(name) {
+            const proj = projectsData.find(p => p.name === name);
+            const desc = proj && proj.description ? ` — ${proj.description}` : '';
+            document.getElementById('projectInfo').style.display = 'block';
+            document.getElementById('projectInfo').textContent = `Active: ${name}${desc}`;
+        }
+
+        async function selectProject() {
+            const name = document.getElementById('projectSelect').value;
+            if (!name) return;
+            try {
+                await fetch(`/api/projects/${encodeURIComponent(name)}/select`, { method: 'POST' });
+                showProjectInfo(name);
+                loadStats();
+                loadUploadLog();
+            } catch (e) { showMessage('Error selecting project', 'error'); }
+        }
+
+        function showCreateProject() { document.getElementById('createProjectModal').classList.add('show'); }
+        function hideCreateProject() { document.getElementById('createProjectModal').classList.remove('show'); }
+
+        async function createProject() {
+            const name = document.getElementById('newProjectName').value.trim();
+            const desc = document.getElementById('newProjectDesc').value.trim();
+            if (!name) { alert('Project name is required'); return; }
+            try {
+                const res = await fetch('/api/projects', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, description: desc })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    hideCreateProject();
+                    document.getElementById('newProjectName').value = '';
+                    document.getElementById('newProjectDesc').value = '';
+                    loadProjects();
+                    showMessage(`Project "${name}" created!`, 'success');
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            } catch (e) { showMessage('Error creating project', 'error'); }
+        }
+
+        // Store uploads data globally for delete reference
+        let uploadsData = [];
+
+        // Upload Log
+        async function loadUploadLog() {
+            const container = document.getElementById('uploadLog');
+            container.innerHTML = '<div class="log-loading">Loading...</div>';
+
+            try {
+                const res = await fetch('/api/uploads');
+                const data = await res.json();
+
+                if (data.success && data.uploads.length > 0) {
+                    uploadsData = data.uploads;
+                    container.innerHTML = '';
+                    data.uploads.forEach((upload, index) => {
+                        const item = document.createElement('div');
+                        item.className = 'log-item';
+
+                        const fileName = document.createElement('div');
+                        fileName.className = 'log-file-name';
+                        fileName.textContent = upload.original_name;
+
+                        const details = document.createElement('div');
+                        details.className = 'log-details';
+                        details.innerHTML = `
+                            <span class="log-date">${formatDateTime(upload.upload_date)}</span>
+                            <span class="log-rows">${upload.rows.toLocaleString()} rows</span>
+                        `;
+
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'log-delete';
+                        deleteBtn.innerHTML = '&#10005;';
+                        deleteBtn.title = 'Delete this upload';
+                        deleteBtn.onclick = function() {
+                            showDeleteConfirm(index);
+                        };
+
+                        item.appendChild(fileName);
+                        item.appendChild(details);
+                        item.appendChild(deleteBtn);
+                        container.appendChild(item);
+                    });
+                } else {
+                    uploadsData = [];
+                    container.innerHTML = '<div class="log-empty">No files uploaded yet</div>';
+                }
+            } catch (e) {
+                container.innerHTML = '<div class="log-empty">Error loading upload history</div>';
+                console.error(e);
+            }
+        }
+
+        function showDeleteConfirm(uploadIndex) {
+            deleteUploadId = uploadIndex;
+            if (uploadsData[uploadIndex]) {
+                document.getElementById('deleteConfirmText').textContent =
+                    `Are you sure you want to delete "${uploadsData[uploadIndex].original_name}"? The data will be removed from the consolidated file.`;
+            }
+            document.getElementById('confirmDeleteModal').classList.add('show');
+        }
+
+        function hideDeleteConfirm() {
+            deleteUploadId = null;
+            document.getElementById('confirmDeleteModal').classList.remove('show');
+        }
+
+        async function confirmDeleteUpload() {
+            if (deleteUploadId === null || !uploadsData[deleteUploadId]) {
+                hideDeleteConfirm();
+                showMessage('Upload not found', 'error');
+                return;
+            }
+
+            const uploadId = uploadsData[deleteUploadId].id;
+            hideDeleteConfirm();
+            showMessage('Deleting upload...', 'success');
+
+            try {
+                const res = await fetch(`/api/uploads/${encodeURIComponent(uploadId)}`, { method: 'DELETE' });
+                const data = await res.json();
+
+                if (data.success) {
+                    showMessage(data.message, 'success');
+                    loadUploadLog();
+                    loadStats();
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            } catch (e) {
+                showMessage('Error deleting upload: ' + e.message, 'error');
+            }
+
+            deleteUploadId = null;
+        }
+
+        // Stats
+        async function loadStats() {
+            try {
+                const res = await fetch('/stats');
+                const data = await res.json();
+                const grid = document.getElementById('statsGrid');
+                if (data.no_project) {
+                    grid.innerHTML = '<div class="no-data">Select or create a project first</div>';
+                } else if (data.exists) {
+                    grid.innerHTML = `
+                        <div class="stat-card"><div class="stat-label">Project</div><div class="stat-value" style="font-size:1em;">${data.project}</div></div>
+                        <div class="stat-card"><div class="stat-label">Rows</div><div class="stat-value">${data.total_rows.toLocaleString()}</div></div>
+                        <div class="stat-card"><div class="stat-label">Columns</div><div class="stat-value">${data.total_columns}</div></div>
+                        <div class="stat-card"><div class="stat-label">Updated</div><div class="stat-value" style="font-size:0.85em;">${formatDateTime(data.last_modified)}</div></div>
+                    `;
+                } else {
+                    grid.innerHTML = `<div class="no-data">Project "${data.project}" has no data yet. Upload files to start.</div>`;
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        // Upload
+        function setupUpload() {
+            const area = document.getElementById('uploadArea');
+            const input = document.getElementById('fileInput');
+            const btn = document.getElementById('uploadBtn');
+
+            area.addEventListener('click', () => input.click());
+            input.addEventListener('change', e => handleFiles(e.target.files));
+            area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('dragover'); });
+            area.addEventListener('dragleave', () => area.classList.remove('dragover'));
+            area.addEventListener('drop', e => { e.preventDefault(); area.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+
+            btn.addEventListener('click', uploadFiles);
+            document.getElementById('downloadBtn').addEventListener('click', downloadFile);
+            document.getElementById('undoBtn').addEventListener('click', undoLastUpload);
+            document.getElementById('resetBtn').addEventListener('click', resetData);
+        }
+
+        function handleFiles(files) {
+            if (!files?.length) return;
+            currentFiles = [...files].filter(f => f.name.match(/\.(xlsx|xls|csv)$/i));
+            const sel = document.getElementById('selectedFile');
+            if (currentFiles.length) {
+                sel.style.display = 'block';
+                sel.textContent = currentFiles.length === 1 ? currentFiles[0].name : `${currentFiles.length} files selected`;
+                document.getElementById('uploadBtn').disabled = false;
+                // Show confirmation dialog
+                showUploadConfirm();
+            } else {
+                sel.style.display = 'none';
+                document.getElementById('uploadBtn').disabled = true;
+            }
+        }
+
+        function showUploadConfirm() {
+            const fileNames = currentFiles.map(f => f.name).join(', ');
+            const fileCount = currentFiles.length;
+            const totalSize = currentFiles.reduce((acc, f) => acc + f.size, 0);
+            document.getElementById('confirmUploadText').innerHTML = `
+                <strong>File${fileCount > 1 ? 's' : ''}:</strong> ${fileNames}<br>
+                <strong>Count:</strong> ${fileCount} file${fileCount > 1 ? 's' : ''}<br>
+                <strong>Size:</strong> ${formatBytes(totalSize)}<br><br>
+                Do you want to upload ${fileCount > 1 ? 'these files' : 'this file'}?
+            `;
+            document.getElementById('confirmUploadModal').classList.add('show');
+        }
+
+        function hideUploadConfirm() {
+            document.getElementById('confirmUploadModal').classList.remove('show');
+        }
+
+        function proceedUpload() {
+            hideUploadConfirm();
+            uploadFiles();
+        }
+
+        async function uploadFiles() {
+            if (!currentFiles.length) return;
+            const form = new FormData();
+            currentFiles.forEach(f => form.append('file', f));
+            document.getElementById('uploadBtn').disabled = true;
+            hideMessage();
+
+            // Show progress bar
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const progressStatus = document.getElementById('progressStatus');
+            progressContainer.style.display = 'block';
+            progressFill.style.width = '0%';
+            progressText.textContent = '0%';
+            progressStatus.textContent = 'Uploading files...';
+
+            const xhr = new XMLHttpRequest();
+
+            xhr.upload.addEventListener('progress', (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    progressFill.style.width = percent + '%';
+                    progressText.textContent = percent + '%';
+                    if (percent < 100) {
+                        progressStatus.textContent = `Uploading... ${formatBytes(e.loaded)} / ${formatBytes(e.total)}`;
+                    } else {
+                        progressStatus.textContent = 'Processing files...';
+                    }
+                }
+            });
+
+            xhr.addEventListener('load', () => {
+                progressContainer.style.display = 'none';
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    if (data.success) {
+                        showMessage(`Success! ${data.files_processed} file(s), ${data.rows_added} rows added. Total: ${data.total_rows}`, 'success');
+                        currentFiles = [];
+                        document.getElementById('fileInput').value = '';
+                        document.getElementById('selectedFile').style.display = 'none';
+                        loadStats();
+                        loadUploadLog();
+                    } else {
+                        showMessage(data.error, 'error');
+                        document.getElementById('uploadBtn').disabled = false;
+                    }
+                } catch (e) {
+                    showMessage('Error parsing response', 'error');
+                    document.getElementById('uploadBtn').disabled = false;
+                }
+            });
+
+            xhr.addEventListener('error', () => {
+                progressContainer.style.display = 'none';
+                showMessage('Upload failed', 'error');
+                document.getElementById('uploadBtn').disabled = false;
+            });
+
+            xhr.open('POST', '/upload');
+            xhr.send(form);
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        async function downloadFile() {
+            if (window.pywebview?.api) {
+                try {
+                    const result = await window.pywebview.api.save_consolidated_file();
+                    showMessage(result.success ? result.message : result.error, result.success ? 'success' : 'error');
+                } catch (e) {
+                    showMessage('Error: ' + e.message, 'error');
+                }
+            } else {
+                // Browser mode - check if data exists first
+                try {
+                    const statsRes = await fetch('/stats');
+                    const stats = await statsRes.json();
+                    if (!stats.exists) {
+                        showMessage('No data to download. Please upload files first.', 'error');
+                        return;
+                    }
+                    window.location.href = '/download';
+                } catch (e) {
+                    showMessage('Error: ' + e.message, 'error');
+                }
+            }
+        }
+
+        function undoLastUpload() {
+            if (uploadsData.length === 0) {
+                showMessage('No uploads to undo', 'error');
+                return;
+            }
+            // Get the most recent upload (first in the reversed list)
+            const lastUpload = uploadsData[0];
+            document.getElementById('undoConfirmText').innerHTML = `
+                <strong>File:</strong> ${lastUpload.original_name}<br>
+                <strong>Rows to remove:</strong> ${lastUpload.rows.toLocaleString()}<br><br>
+                Are you sure you want to undo this upload?
+            `;
+            document.getElementById('undoConfirmModal').classList.add('show');
+        }
+
+        function hideUndoConfirm() {
+            document.getElementById('undoConfirmModal').classList.remove('show');
+        }
+
+        async function confirmUndo() {
+            hideUndoConfirm();
+            if (uploadsData.length === 0) return;
+
+            const lastUpload = uploadsData[0];
+            showMessage('Undoing last upload...', 'success');
+            try {
+                const res = await fetch(`/api/uploads/${encodeURIComponent(lastUpload.id)}`, { method: 'DELETE' });
+                const data = await res.json();
+
+                if (data.success) {
+                    showMessage(`Undo successful! Removed "${lastUpload.original_name}" (${data.rows_removed} rows)`, 'success');
+                    loadStats();
+                    loadUploadLog();
+                } else {
+                    showMessage(data.error, 'error');
+                }
+            } catch (e) {
+                showMessage('Error: ' + e.message, 'error');
+            }
+        }
+
+        async function resetData() {
+            if (!confirm('Reset all data in current project? This will delete all uploads and cannot be undone!')) return;
+            try {
+                const res = await fetch('/reset', { method: 'POST' });
+                const data = await res.json();
+                showMessage(data.success ? 'All data reset successfully' : data.error, data.success ? 'success' : 'error');
+                if (data.success) {
+                    loadStats();
+                    loadUploadLog();
+                }
+            } catch (e) { showMessage(e.message, 'error'); }
+        }
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = `message ${type}`;
+            msg.style.display = 'block';
+        }
+        function hideMessage() { document.getElementById('message').style.display = 'none'; }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Search filter for upload log
+        function filterUploadLog() {
+            const searchTerm = document.getElementById('logSearchInput').value.toLowerCase();
+            const logItems = document.querySelectorAll('.log-item');
+            logItems.forEach(item => {
+                const fileName = item.querySelector('.log-file-name').textContent.toLowerCase();
+                const date = item.querySelector('.log-date').textContent.toLowerCase();
+                if (fileName.includes(searchTerm) || date.includes(searchTerm)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Don't trigger shortcuts when typing in inputs
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key.toLowerCase()) {
+                    case 'o': // Ctrl+O - Open file dialog
+                        e.preventDefault();
+                        document.getElementById('fileInput').click();
+                        break;
+                    case 'd': // Ctrl+D - Download
+                        e.preventDefault();
+                        downloadFile();
+                        break;
+                    case 'z': // Ctrl+Z - Undo last upload
+                        e.preventDefault();
+                        undoLastUpload();
+                        break;
+                    case 'n': // Ctrl+N - New project
+                        e.preventDefault();
+                        showCreateProject();
+                        break;
+                    case 'b': // Ctrl+B - Dashboard
+                        e.preventDefault();
+                        window.location.href = '/dashboard';
+                        break;
+                }
+            } else {
+                switch(e.key) {
+                    case 'Escape': // Escape - Close modals
+                        hideCreateProject();
+                        hideDeleteConfirm();
+                        hideUploadConfirm();
+                        hideUndoConfirm();
+                        hideDeleteProject();
+                        break;
+                    case 'F1': // F1 - Show keyboard shortcuts
+                        e.preventDefault();
+                        showKeyboardShortcuts();
+                        break;
+                }
+            }
+        });
+
+        function showKeyboardShortcuts() {
+            alert(`Keyboard Shortcuts:
+
+Ctrl+O - Open file dialog
+Ctrl+D - Download data
+Ctrl+Z - Undo last upload
+Ctrl+N - New project
+Ctrl+B - Go to Dashboard
+Escape - Close modals
+F1 - Show this help`);
+        }
+
+        // Audit Log
+        async function showAuditLog() {
+            document.getElementById('auditModal').classList.add('show');
+            const list = document.getElementById('auditList');
+            list.innerHTML = '<div class="log-loading">Loading...</div>';
+
+            try {
+                const res = await fetch('/api/audit-log');
+                const data = await res.json();
+
+                if (data.success && data.audit_log.length > 0) {
+                    list.innerHTML = data.audit_log.map(entry => `
+                        <div class="audit-item">
+                            <div class="audit-action">${formatAction(entry.action)}</div>
+                            <div class="audit-time">${entry.timestamp}</div>
+                            ${entry.details ? `<div class="audit-details">${entry.details}</div>` : ''}
+                        </div>
+                    `).join('');
+                } else {
+                    list.innerHTML = '<div class="log-empty">No activity recorded yet</div>';
+                }
+            } catch (e) {
+                list.innerHTML = '<div class="log-empty">Error loading activity log</div>';
+            }
+        }
+
+        function hideAuditLog() {
+            document.getElementById('auditModal').classList.remove('show');
+        }
+
+        function formatAction(action) {
+            const actions = {
+                'PROJECT_CREATED': '📁 Project Created',
+                'FILES_UPLOADED': '📤 Files Uploaded',
+                'UPLOAD_DELETED': '🗑️ Upload Deleted',
+                'PROJECT_RESTORED': '🔄 Project Restored',
+                'DATA_RESET': '⚠️ Data Reset'
+            };
+            return actions[action] || action;
+        }
+
+        // Toast Notifications
+        function showToast(message, type = 'info', duration = 3000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // All Projects - Quick Switch
+        function updateRecentProjects(projects, current) {
+            const container = document.getElementById('recentProjects');
+            if (projects.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            container.innerHTML = '<span style="font-size:0.85em;color:#7f8c8d;">Projects:</span> ' +
+                projects.map(p => `<span class="recent-project-wrapper"><button class="recent-project-btn ${p.name === current ? 'active' : ''}" onclick="quickSwitchProject('${escapeHtml(p.name)}')">${escapeHtml(p.name)}</button><button class="recent-project-delete" onclick="event.stopPropagation();showDeleteProject('${escapeHtml(p.name)}')" title="Delete project">&times;</button></span>`).join('');
+        }
+
+        async function quickSwitchProject(name) {
+            await fetch(`/api/projects/${encodeURIComponent(name)}/select`, { method: 'POST' });
+            document.getElementById('projectSelect').value = name;
+            showProjectInfo(name);
+            loadStats();
+            loadUploadLog();
+            showToast(`Switched to ${name}`, 'success');
+
+            // Update button colors immediately
+            document.querySelectorAll('.recent-project-btn').forEach(btn => {
+                if (btn.textContent === name) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        // Delete Project
+        let deleteProjectName = null;
+
+        function showDeleteProject(name) {
+            if (!name) {
+                name = document.getElementById('projectSelect').value;
+            }
+            if (!name) {
+                showToast('No project selected', 'error');
+                return;
+            }
+            deleteProjectName = name;
+            document.getElementById('deleteProjectText').textContent =
+                `Are you sure you want to delete "${name}"? All data will be permanently removed.`;
+            document.getElementById('deleteProjectModal').classList.add('show');
+        }
+
+        function hideDeleteProject() {
+            deleteProjectName = null;
+            document.getElementById('deleteProjectModal').classList.remove('show');
+        }
+
+        async function confirmDeleteProject() {
+            if (!deleteProjectName) {
+                hideDeleteProject();
+                return;
+            }
+            const name = deleteProjectName;
+            hideDeleteProject();
+            try {
+                const res = await fetch(`/api/projects/${encodeURIComponent(name)}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Project "${name}" deleted`, 'success');
+                    loadProjects();
+                    loadStats();
+                    loadUploadLog();
+                } else {
+                    showToast(data.error || 'Failed to delete project', 'error');
+                }
+            } catch (e) {
+                showToast('Error deleting project', 'error');
+            }
+        }
+
+        // Column Mapping
+        let pendingMappingFile = null;
+        let mappingColumns = { source: [], target: [] };
+
+        function showMappingModal(sourceColumns, targetColumns, file) {
+            pendingMappingFile = file;
+            mappingColumns = { source: sourceColumns, target: targetColumns };
+
+            const tbody = document.getElementById('mappingTableBody');
+            tbody.innerHTML = sourceColumns.map((col, i) => `
+                <tr>
+                    <td>${col}</td>
+                    <td>
+                        <select id="mapping_${i}">
+                            <option value="">-- Skip --</option>
+                            ${targetColumns.map(t => `<option value="${t}" ${t === col ? 'selected' : ''}>${t}</option>`).join('')}
+                        </select>
+                    </td>
+                </tr>
+            `).join('');
+
+            document.getElementById('mappingModal').classList.add('show');
+        }
+
+        function hideMappingModal() {
+            document.getElementById('mappingModal').classList.remove('show');
+            pendingMappingFile = null;
+        }
+
+        async function applyMapping() {
+            if (!pendingMappingFile) return;
+
+            const mapping = {};
+            mappingColumns.source.forEach((col, i) => {
+                const select = document.getElementById(`mapping_${i}`);
+                if (select && select.value) {
+                    mapping[col] = select.value;
+                }
+            });
+
+            const form = new FormData();
+            form.append('file', pendingMappingFile);
+            form.append('mapping', JSON.stringify(mapping));
+
+            hideMappingModal();
+            showToast('Uploading with column mapping...', 'info');
+
+            try {
+                const res = await fetch('/upload-mapped', { method: 'POST', body: form });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`Uploaded! ${data.rows_added} rows added`, 'success');
+                    loadStats();
+                    loadUploadLog();
+                } else {
+                    showToast(data.error, 'error');
+                }
+            } catch (e) {
+                showToast('Upload failed', 'error');
+            }
+        }
+
+        // Data Summary
+        async function showDataSummary() {
+            document.getElementById('summaryModal').classList.add('show');
+            const content = document.getElementById('summaryContent');
+            content.innerHTML = '<div class="log-loading">Loading...</div>';
+
+            try {
+                const res = await fetch('/api/data-summary');
+                const data = await res.json();
+
+                if (data.success) {
+                    content.innerHTML = `
+                        <div class="summary-stats">
+                            <div class="summary-stat">
+                                <div class="summary-stat-value">${data.total_rows.toLocaleString()}</div>
+                                <div class="summary-stat-label">Total Rows</div>
+                            </div>
+                            <div class="summary-stat">
+                                <div class="summary-stat-value">${data.total_columns}</div>
+                                <div class="summary-stat-label">Columns</div>
+                            </div>
+                            <div class="summary-stat">
+                                <div class="summary-stat-value">${data.file_count}</div>
+                                <div class="summary-stat-label">Files</div>
+                            </div>
+                            <div class="summary-stat">
+                                <div class="summary-stat-value">${data.file_size}</div>
+                                <div class="summary-stat-label">Data Size</div>
+                            </div>
+                        </div>
+                        <h4 style="margin-top:20px;color:#2c3e50;">Column Types</h4>
+                        <div style="max-height:200px;overflow-y:auto;">
+                            ${data.column_info.map(c => `
+                                <div style="display:flex;justify-content:space-between;padding:8px;border-bottom:1px solid #e9ecef;">
+                                    <span>${c.name}</span>
+                                    <span style="color:#7f8c8d;">${c.dtype} | ${c.non_null}% filled</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    content.innerHTML = `<div class="log-empty">${data.error || 'No data available'}</div>`;
+                }
+            } catch (e) {
+                content.innerHTML = '<div class="log-empty">Error loading summary</div>';
+            }
+        }
+
+        function hideSummaryModal() {
+            document.getElementById('summaryModal').classList.remove('show');
+        }
+
+        // Update loadProjects to include recent projects
+        const originalLoadProjects = loadProjects;
+        loadProjects = async function() {
+            try {
+                const res = await fetch('/api/projects');
+                const data = await res.json();
+                projectsData = data.projects;
+                const select = document.getElementById('projectSelect');
+                select.innerHTML = '<option value="">-- Select a Project --</option>';
+                data.projects.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.name;
+                    opt.textContent = p.name;
+                    if (p.name === data.current_project) opt.selected = true;
+                    select.appendChild(opt);
+                });
+                if (data.current_project) {
+                    loadStats();
+                    loadUploadLog();
+                    showProjectInfo(data.current_project);
+                }
+                updateRecentProjects(data.projects, data.current_project);
+            } catch (e) { console.error(e); }
+        };
+
+
+        // Performance Monitoring
+        let currentUploadPage = 1;
+        let totalUploadPages = 1;
+        let allUploadsLoaded = false;
+
+        async function updatePerfMonitor() {
+            try {
+                const res = await fetch('/api/memory-stats');
+                const data = await res.json();
+
+                if (data.success) {
+                    const indicator = document.getElementById('perfIndicator');
+                    const text = document.getElementById('perfText');
+
+                    text.textContent = `Cache: ${data.cache_size_mb} MB`;
+
+                    if (data.cache_size_mb < 50) {
+                        indicator.className = 'perf-indicator perf-good';
+                    } else if (data.cache_size_mb < 200) {
+                        indicator.className = 'perf-indicator perf-warning';
+                    } else {
+                        indicator.className = 'perf-indicator perf-bad';
+                    }
+
+                    // Show task indicator if tasks running
+                    if (data.active_tasks > 0) {
+                        document.getElementById('taskIndicator').classList.add('active');
+                        document.getElementById('taskText').textContent = `${data.active_tasks} task(s) running...`;
+                    } else {
+                        document.getElementById('taskIndicator').classList.remove('active');
+                    }
+                }
+            } catch (e) {}
+        }
+
+        // Update performance stats every 10 seconds
+        setInterval(updatePerfMonitor, 10000);
+        updatePerfMonitor();
+
+        function showPerformanceDetails() {
+            fetch('/api/memory-stats')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(`Performance Stats:
+
+Cache Items: ${data.cache_items}
+Cache Size: ${data.cache_size_mb} MB
+Active Tasks: ${data.active_tasks}
+
+Click OK to clear cache if needed.`);
+                        if (confirm('Clear cache now?')) {
+                            clearCache();
+                        }
+                    }
+                });
+        }
+
+        async function clearCache() {
+            try {
+                await fetch('/api/clear-cache', { method: 'POST' });
+                showToast('Cache cleared!', 'success');
+                updatePerfMonitor();
+            } catch (e) {
+                showToast('Failed to clear cache', 'error');
+            }
+        }
+
+        // Lazy loading for upload log
+        async function loadUploadLogPaginated(page = 1, append = false) {
+            const container = document.getElementById('uploadLog');
+
+            if (!append) {
+                container.innerHTML = '<div class="log-loading">Loading...</div>';
+                currentUploadPage = 1;
+            }
+
+            try {
+                const res = await fetch(`/api/uploads?page=${page}&per_page=20`);
+                const data = await res.json();
+
+                if (data.success) {
+                    if (!append) {
+                        uploadsData = data.uploads;
+                        container.innerHTML = '';
+                    } else {
+                        uploadsData = [...uploadsData, ...data.uploads];
+                    }
+
+                    totalUploadPages = data.pagination.pages;
+                    currentUploadPage = data.pagination.page;
+                    allUploadsLoaded = currentUploadPage >= totalUploadPages;
+
+                    if (data.uploads.length > 0) {
+                        const startIndex = append ? uploadsData.length - data.uploads.length : 0;
+                        data.uploads.forEach((upload, idx) => {
+                            const index = startIndex + idx;
+                            const item = document.createElement('div');
+                            item.className = 'log-item';
+
+                            const fileName = document.createElement('div');
+                            fileName.className = 'log-file-name';
+                            fileName.textContent = upload.original_name;
+
+                            const details = document.createElement('div');
+                            details.className = 'log-details';
+                            details.innerHTML = `
+                                <span class="log-date">${formatDateTime(upload.upload_date)}</span>
+                                <span class="log-rows">${upload.rows.toLocaleString()} rows</span>
+                            `;
+
+                            const deleteBtn = document.createElement('button');
+                            deleteBtn.className = 'log-delete';
+                            deleteBtn.innerHTML = '&#10005;';
+                            deleteBtn.title = 'Delete this upload';
+                            deleteBtn.onclick = function() {
+                                showDeleteConfirm(index);
+                            };
+
+                            item.appendChild(fileName);
+                            item.appendChild(details);
+                            item.appendChild(deleteBtn);
+                            container.appendChild(item);
+                        });
+
+                        // Add load more button if more pages exist
+                        if (!allUploadsLoaded) {
+                            const existingBtn = container.querySelector('.load-more-btn');
+                            if (existingBtn) existingBtn.remove();
+
+                            const loadMoreBtn = document.createElement('button');
+                            loadMoreBtn.className = 'load-more-btn';
+                            loadMoreBtn.textContent = `Load More (${totalUploadPages - currentUploadPage} more pages)`;
+                            loadMoreBtn.onclick = () => loadUploadLogPaginated(currentUploadPage + 1, true);
+                            container.appendChild(loadMoreBtn);
+                        } else {
+                            const existingBtn = container.querySelector('.load-more-btn');
+                            if (existingBtn) existingBtn.remove();
+                        }
+                    } else if (!append) {
+                        container.innerHTML = '<div class="log-empty">No files uploaded yet</div>';
+                    }
+                } else {
+                    if (!append) {
+                        container.innerHTML = '<div class="log-empty">Error loading upload history</div>';
+                    }
+                }
+            } catch (e) {
+                if (!append) {
+                    container.innerHTML = '<div class="log-empty">Error loading upload history</div>';
+                }
+                console.error(e);
+            }
+        }
+
+        // Override original loadUploadLog to use paginated version
+        loadUploadLog = loadUploadLogPaginated;
+
+        // Background task checker
+        async function checkBackgroundTasks() {
+            try {
+                const res = await fetch('/api/background-tasks');
+                const data = await res.json();
+
+                if (data.success) {
+                    const runningTasks = data.tasks.filter(t => t.status === 'running');
+                    if (runningTasks.length > 0) {
+                        document.getElementById('taskIndicator').classList.add('active');
+                        document.getElementById('taskText').textContent = runningTasks[0].description;
+                    } else {
+                        document.getElementById('taskIndicator').classList.remove('active');
+                    }
+                }
+            } catch (e) {}
+        }
+
+        // Check tasks every 5 seconds
+        setInterval(checkBackgroundTasks, 5000);
+    </script>
+</body>
+</html>

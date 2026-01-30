@@ -1,0 +1,109 @@
+================================================================================
+               DATA COMPILATION TOOL - USER GUIDE
+                        Version 3.0
+================================================================================
+
+WELCOME!
+--------
+Thank you for using Data Analytical and Compilation Tool. This software helps you automatically
+combine monthly Excel files and analyze data with a powerful dashboard.
+
+GETTING STARTED
+---------------
+1. Launch the application from:
+   - Desktop icon: "Data Analytical and Compilation Tool"
+   - Start Menu: Programs > Data Analytical and Compilation Tool
+
+2. The application opens in a native desktop window
+3. Create a project or select an existing one to get started
+
+FEATURES
+--------
+
+1. MULTI-PROJECT SUPPORT
+   - Create and manage multiple consolidation projects
+   - Quick switch between projects
+   - Each project has its own settings and data
+
+2. UPLOAD & COMBINE FILES
+   - Click the upload area or drag & drop Excel files (.xlsx, .xls, .csv)
+   - Files are automatically combined with existing data
+   - Column mapping available for files with different header names
+   - Maximum file size: 50 MB
+   - Upload confirmation popup shows filename, count, and size
+
+3. UPLOAD MANAGEMENT
+   - View upload history with search and filter
+   - Delete specific uploads to remove their data
+   - Undo last upload with confirmation popup
+
+4. VIEW DASHBOARD
+   - Click "View Dashboard" or press Ctrl+B
+   - Select date range to filter data
+   - View Top 10 analysis charts (configurable columns)
+   - Monthly trend analysis displayed inline
+   - Compare periods side-by-side
+   - Column analysis with type, fill %, unique count, duplicates
+   - Export PDF reports
+   - Download Top 10 data as Excel (Summary + Data sheets)
+
+5. DOWNLOAD DATA
+   - Click "Download Data" or press Ctrl+D
+   - CSV format recommended for speed
+   - Download filtered data for specific date ranges
+
+6. DARK MODE
+   - Toggle between light and dark themes
+   - Preference is saved automatically
+
+KEYBOARD SHORTCUTS
+------------------
+- Ctrl+O    Open file dialog
+- Ctrl+D    Download data
+- Ctrl+Z    Undo last upload
+- Ctrl+N    New project
+- Ctrl+B    Go to Dashboard
+- F1        Show shortcuts help
+- Escape    Close modals
+
+DATA STORAGE
+------------
+All your data is stored locally on your computer at:
+C:\Users\YourUsername\AppData\Local\DataCompilationTool\Data\
+
+Files per project:
+- consolidated_data.pkl (fast internal format)
+- consolidated_data.xlsx (Excel export, generated on download)
+- settings.json (project settings)
+- upload_log.json (upload history)
+- audit_log.json (activity log)
+- uploads\ folder (backup of uploaded files)
+
+Note: This location is automatically chosen to ensure you have write permissions.
+
+REQUIREMENTS
+------------
+- Windows 10 or higher
+- 100 MB free disk space
+- No internet connection required (runs offline)
+
+TROUBLESHOOTING
+---------------
+
+Problem: Upload fails with "Column headers don't match"
+Solution: Use the Column Mapping feature to map different header names,
+          or start a new project for files with different structures.
+
+Problem: Application won't start
+Solution: Check if port 5000 is available, restart the application.
+
+Problem: Download is slow
+Solution: Use CSV format instead of Excel for faster downloads.
+
+SUPPORT
+-------
+For support, please contact Internal Audit department.
+
+================================================================================
+               Data Analytical and Compilation Tool - Internal Audit
+================================================================================
