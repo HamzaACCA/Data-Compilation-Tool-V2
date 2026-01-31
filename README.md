@@ -142,6 +142,18 @@ Data Compilation V3/
 ### V3.0
 - Initial release with multi-project support, dashboard, and analytics
 
+## V4 Roadmap
+
+A full rewrite to **FastAPI + React** is planned, including:
+- SQLite database replacing pickle/JSON file storage
+- JWT authentication with role-based access control
+- Anomaly detection (outliers, duplicates, gap analysis)
+- React dashboard with Recharts
+- WebSocket real-time upload progress
+- SAP S/4HANA OData integration (Phase 2)
+
+See **[V4_ARCHITECTURE_PLAN.md](V4_ARCHITECTURE_PLAN.md)** for the full architecture plan.
+
 ## Support
 
 For issues or feature requests, contact Internal Audit department.

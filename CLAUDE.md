@@ -508,6 +508,22 @@ The `.env` file is listed in `.gitignore` and will never be committed.
 
 ---
 
+## V4 Roadmap
+
+A full architectural rewrite is planned. See **[V4_ARCHITECTURE_PLAN.md](V4_ARCHITECTURE_PLAN.md)** for the complete design document.
+
+### V4 Key Changes
+- **Backend:** Flask → FastAPI (async)
+- **Frontend:** Vanilla HTML/JS → React 18 + Vite + TailwindCSS
+- **Database:** Pickle + JSON files → SQLite + SQLAlchemy
+- **Auth:** None → JWT (access + refresh tokens) with role-based access
+- **Charts:** Chart.js (CDN) → Recharts (React-native)
+- **New Features:** Anomaly detection (outliers, duplicates, gaps), WebSocket upload progress, SAP S/4HANA integration (Phase 2)
+
+**Status:** Planning — Not yet implemented
+
+---
+
 **Version:** 3.1
-**Last Updated:** 30-Jan-2026
+**Last Updated:** 31-Jan-2026
 **Developer:** Hamza Yahya - Internal Audit
