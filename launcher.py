@@ -2213,7 +2213,7 @@ class Api:
 
 
 def start_server():
-    app.run(host='127.0.0.1', port=5000, debug=False, use_reloader=False, threaded=True)
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False, threaded=True)
 
 
 def show_splash_screen():
