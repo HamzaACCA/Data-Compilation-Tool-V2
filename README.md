@@ -3,14 +3,16 @@
 A desktop + web application to automatically combine monthly Excel files with matching headers into a single consolidated file, with analytics dashboard.
 
 **Prepared by:** Hamza Yahya - Internal Audit
-**Version:** 3.1
+**Version:** 3.4
 
 ## Features
 
 - Multi-project support with per-project settings
 - Upload multiple Excel/CSV files at once with column mapping
 - Fast data processing with pickle storage and calamine Excel reader
-- Dashboard with configurable Top 10 charts, trend analysis, and PDF export
+- Dashboard with configurable Top 10 charts, Monthly Trend Line Chart, and PDF export
+- Monthly Trend Line Chart with group-by column, SUM/COUNT toggle, Top N selector, specific group search
+- ECG/Medical Monitor theme with movement mode (deviation from baseline), neon styling, and trend-specific date range
 - Date range filtering and period comparison
 - Dark mode, keyboard shortcuts, audit log
 - Streaming CSV and in-memory Excel downloads (no temp files)
@@ -101,6 +103,8 @@ GITHUB_TOKEN=your_github_token_here
 ```
 Data Compilation V3/
 ├── launcher.py              # Main application (Flask + PyWebView)
+├── utils/
+│   └── logging.py           # Logging utility (colored console + rotating file)
 ├── templates/
 │   ├── index.html           # Upload page
 │   └── dashboard.html       # Dashboard page
@@ -126,6 +130,32 @@ Data Compilation V3/
 | Stale data after deleting upload | Refresh the page — cache is auto-cleared on mutations |
 
 ## Changelog
+
+### V3.4 (21-Feb-2026)
+- Structured logging via `utils/logging.py` — colored console output and rotating log file (`Data/app.log`)
+- All internal `print()` calls replaced with proper log levels (info / warning / error)
+
+### V3.3 (08-Feb-2026)
+- **Monthly Trend Line Chart** — replaced old trend boxes with single multi-line chart
+- Group-by column selector with auto-select first column
+- SUM/COUNT toggle with value column dropdown (numeric columns)
+- Top N selector (Top 5/10/15/20/25) and "Specific..." mode with searchable chip input
+- Y-axis with smart scaling, hover tooltips, color legend with totals
+- Excel download (2-sheet: Summary + Trend Data)
+- **ECG/Medical Monitor Theme** — toggle neon green-on-black styling on the trend chart
+- **Movement mode** — RAW/MOVEMENT toggle shows deviation from user-selected baseline month as a sequential pulse chart (one continuous line, groups side by side per month, compact K/M labels on every dot)
+- **Trend-specific date range** — independent start/end dates for the trend chart (clamped within main filter)
+- **Baseline month picker** — dropdown to select reference month; 3-sheet Excel download (Summary + Raw Data + Movement Data)
+- Parallelized dashboard API calls for faster loading (~590ms with cache)
+- Added caching for `/api/columns` and `/api/column-stats` endpoints
+
+### V3.2 (31-Jan-2026)
+- Enhanced Monthly Trend Analysis with column + aggregation selector (COUNT/SUM/AVG/MIN/MAX)
+- Trend Breakdown by Group — stacked bar chart with Top 10 groups, color legend, Excel download
+- Audit insights: anomaly detection (>2x average), concentration warnings (>50%), new/disappeared values
+- Year-over-Year comparison chart (when data spans 2+ years)
+- Month-over-Month % change table with color-coded percentages
+- Full dark mode support for all new dashboard elements
 
 ### V3.1 (30-Jan-2026)
 - Raw XML Excel writer — 3x faster Excel downloads (14s vs 42s for large datasets)
