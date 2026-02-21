@@ -17,6 +17,7 @@ from functools import lru_cache
 import xlsxwriter
 import zipfile
 from xml.sax.saxutils import escape as _xml_escape
+from utils.logging import setup_logging, get_logger
 
 # Fast Excel reader (Rust-based, ~9x faster than openpyxl)
 try:
@@ -28,6 +29,7 @@ except ImportError:
 # Memory cache for frequently accessed data
 data_cache = {}
 cache_timestamps = {}
+columns_cache = {}  # Cache for column metadata (date_columns, numeric_columns)
 CACHE_TTL = 300  # 5 minutes cache
 
 # Background tasks tracking
@@ -62,6 +64,8 @@ else:
     APP_DIR = os.path.join(BASE_DIR, 'Data')
 
 os.makedirs(APP_DIR, exist_ok=True)
+setup_logging(APP_DIR)
+log = get_logger(__name__)
 
 PROJECTS_DIR = os.path.join(APP_DIR, 'Projects')
 os.makedirs(PROJECTS_DIR, exist_ok=True)
@@ -129,8 +133,8 @@ def log_audit(project_name, action, details=''):
 
         with open(files['audit_log'], 'w') as f:
             json.dump(audit_log, f, indent=2)
-    except:
-        pass  # Silently fail - audit log is not critical
+    except Exception as e:
+        log.warning("audit log write failed: %s", e)
 
 
 def load_upload_log(project_name):
@@ -197,15 +201,18 @@ def get_cached_dataframe(project_name, force_reload=False):
 
 def clear_cache(project_name=None):
     """Clear memory cache"""
-    global data_cache, cache_timestamps
+    global data_cache, cache_timestamps, columns_cache
     if project_name:
         cache_key = f"df_{project_name}"
         data_cache.pop(cache_key, None)
+        data_cache.pop(f"colstats_{project_name}", None)
         cache_timestamps.pop(cache_key, None)
         cache_timestamps.pop(f"{cache_key}_mtime", None)
+        columns_cache.pop(project_name, None)
     else:
         data_cache.clear()
         cache_timestamps.clear()
+        columns_cache.clear()
 
 
 def optimize_dataframe(df):
@@ -902,6 +909,10 @@ def get_columns():
         if not project_name:
             return jsonify({'success': False, 'error': 'No project selected'})
 
+        # Check columns cache first
+        if project_name in columns_cache:
+            return jsonify(columns_cache[project_name])
+
         df = get_cached_dataframe(project_name)
         if df is None:
             return jsonify({'success': False, 'error': 'No data in project', 'columns': []})
@@ -909,27 +920,41 @@ def get_columns():
         # Return simple list of column names for dashboard (exclude internal _upload_id)
         columns = [c for c in df.columns if c != '_upload_id']
 
-        # Detect date columns: already datetime, or parseable as dates
+        # Detect date columns: already datetime, datetime.date objects, or parseable as dates
+        import datetime as _dt
+        import warnings
         date_columns = []
         for c in columns:
             if pd.api.types.is_datetime64_any_dtype(df[c]):
                 date_columns.append(c)
-            elif df[c].dtype == 'object':
-                sample = df[c].dropna().head(20)
+            elif df[c].dtype == 'object' or df[c].dtype.name == 'category':
+                sample = df[c].dropna().head(10)  # Reduced from 20 to 10
                 if len(sample) > 0:
-                    parsed = pd.to_datetime(sample, errors='coerce')
-                    if parsed.notna().sum() >= len(sample) * 0.8:
+                    first_val = sample.iloc[0]
+                    # Check if values are datetime.date/datetime objects (not time-only)
+                    if isinstance(first_val, _dt.date) and not isinstance(first_val, _dt.time):
                         date_columns.append(c)
+                    elif isinstance(first_val, str):
+                        # Skip bare numbers that falsely parse as years (e.g. "2034")
+                        if not all(s.strip().isdigit() and len(s.strip()) <= 4 for s in sample.astype(str)):
+                            with warnings.catch_warnings():
+                                warnings.simplefilter("ignore")
+                                parsed = pd.to_datetime(sample.astype(str), errors='coerce')
+                            if parsed.notna().sum() >= len(sample) * 0.8:
+                                date_columns.append(c)
 
         # Detect numeric columns
         numeric_columns = [c for c in columns if pd.api.types.is_numeric_dtype(df[c])]
 
-        return jsonify({
+        result = {
             'success': True,
             'columns': columns,
             'date_columns': date_columns,
             'numeric_columns': numeric_columns
-        })
+        }
+        # Cache the result
+        columns_cache[project_name] = result
+        return jsonify(result)
     except Exception as e:
         return jsonify({'success': False, 'error': str(e), 'columns': []})
 
@@ -1750,16 +1775,26 @@ def get_column_stats():
         if not project_name:
             return jsonify({'success': False, 'error': 'No project selected'})
 
+        # Check cache
+        cache_key = f"colstats_{project_name}"
+        if cache_key in data_cache:
+            return jsonify(data_cache[cache_key])
+
         df = get_cached_dataframe(project_name)
         if df is None:
             return jsonify({'success': False, 'error': 'No data available'})
 
+        total_rows = len(df)
         columns_stats = []
+
+        # Pre-compute notna counts for all columns at once (vectorized)
+        notna_counts = df.notna().sum()
+
         for col in df.columns:
             if col == '_upload_id':
                 continue
 
-            fill_pct = round((df[col].notna().sum() / len(df)) * 100, 1)
+            fill_pct = round((notna_counts[col] / total_rows) * 100, 1)
             unique_count = df[col].nunique()
 
             # Get sample values
@@ -1791,11 +1826,14 @@ def get_column_stats():
                 'sample_values': sample_str
             })
 
-        return jsonify({
+        result = {
             'success': True,
             'columns': columns_stats,
-            'total_rows': len(df)
-        })
+            'total_rows': total_rows
+        }
+        # Cache the result
+        data_cache[cache_key] = result
+        return jsonify(result)
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -1892,9 +1930,9 @@ def download_column_stats():
         return str(e), 500
 
 
-@app.route('/api/trend-analysis')
-def get_trend_analysis():
-    """Get monthly trend data for the date range"""
+@app.route('/api/trend-line-data')
+def get_trend_line_data():
+    """Get monthly trend line data grouped by a column"""
     try:
         config = load_config()
         project_name = config.get('current_project')
@@ -1904,41 +1942,262 @@ def get_trend_analysis():
 
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
+        group_column = request.args.get('group_column', '')
+        value_column = request.args.get('value_column', '')
+        agg_method = request.args.get('agg_method', 'count').lower()
+        top_n = int(request.args.get('top_n', '10'))
+        specific_groups = request.args.getlist('specific_groups')
+        baseline_month = request.args.get('baseline_month', '')
+        trend_start_date = request.args.get('trend_start_date', '')
+        trend_end_date = request.args.get('trend_end_date', '')
+
+        if not group_column:
+            return jsonify({'success': False, 'error': 'No group column specified'})
 
         settings = load_project_settings(project_name)
-
         df = get_cached_dataframe(project_name)
         if df is None:
             return jsonify({'success': False, 'error': 'No data available'})
 
         date_column = settings.get('date_column', '')
-
         if not date_column or date_column not in df.columns:
             return jsonify({'success': False, 'error': 'No date column configured'})
 
+        if group_column not in df.columns:
+            return jsonify({'success': False, 'error': f'Column "{group_column}" not found'})
+
+        df = df.copy()
         df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
 
-        if start_date and end_date:
-            start = pd.to_datetime(start_date)
-            end = pd.to_datetime(end_date)
-            df = df[(df[date_column] >= start) & (df[date_column] <= end)]
+        # Use trend-specific dates if provided, else fall back to main filter dates
+        eff_start = trend_start_date if trend_start_date else start_date
+        eff_end = trend_end_date if trend_end_date else end_date
 
-        # Group by month
-        df['_month'] = df[date_column].dt.to_period('M')
-        monthly_counts = df.groupby('_month').size().reset_index(name='count')
-        monthly_counts['_month'] = monthly_counts['_month'].astype(str)
+        if eff_start and eff_end:
+            s = pd.to_datetime(eff_start)
+            e = pd.to_datetime(eff_end)
+            df = df[(df[date_column] >= s) & (df[date_column] <= e)]
 
-        monthly_data = [{'month': row['_month'], 'count': int(row['count'])} for _, row in monthly_counts.iterrows()]
+        if len(df) == 0:
+            return jsonify({'success': False, 'error': 'No data in selected range'})
 
-        return jsonify({
+        # Convert group column safely (handles categorical)
+        df[group_column] = df[group_column].astype(str).fillna('(blank)').replace('nan', '(blank)')
+
+        # Mode: return available groups list for searchable dropdown
+        if top_n == 0 and not specific_groups:
+            freq = df[group_column].value_counts()
+            available = freq.index.tolist()[:500]
+            return jsonify({'success': True, 'available_groups': available})
+
+        # Determine which groups to include
+        if top_n == 0 and specific_groups:
+            selected_groups = specific_groups
+        else:
+            # Top N by total
+            if agg_method == 'sum' and value_column and value_column in df.columns:
+                df['_val'] = pd.to_numeric(df[value_column], errors='coerce').fillna(0)
+                group_ranks = df.groupby(group_column)['_val'].sum().sort_values(ascending=False)
+            else:
+                group_ranks = df[group_column].value_counts()
+            selected_groups = group_ranks.head(top_n).index.tolist()
+
+        # Build month column
+        df['_month'] = df[date_column].dt.to_period('M').astype(str)
+
+        # Aggregate
+        if agg_method == 'sum' and value_column and value_column in df.columns:
+            df['_val'] = pd.to_numeric(df[value_column], errors='coerce').fillna(0)
+            filtered = df[df[group_column].isin(selected_groups)]
+            pivot = filtered.groupby(['_month', group_column])['_val'].sum().unstack(fill_value=0)
+        else:
+            filtered = df[df[group_column].isin(selected_groups)]
+            pivot = filtered.groupby(['_month', group_column]).size().unstack(fill_value=0)
+
+        months = sorted(pivot.index.tolist())
+
+        # Build series and totals
+        series = {}
+        group_totals = {}
+        for g in selected_groups:
+            if g in pivot.columns:
+                vals = [round(float(pivot.loc[m, g]), 2) if m in pivot.index else 0 for m in months]
+            else:
+                vals = [0] * len(months)
+            series[g] = vals
+            group_totals[g] = round(sum(vals), 2)
+
+        # Sort groups by total descending
+        groups_sorted = sorted(selected_groups, key=lambda g: group_totals.get(g, 0), reverse=True)
+
+        result = {
             'success': True,
-            'monthly_counts': monthly_data,
-            'total': int(df.shape[0]),
-            'average': float(df.shape[0] / len(monthly_data)) if monthly_data else 0
-        })
+            'months': months,
+            'groups': groups_sorted,
+            'series': series,
+            'group_totals': group_totals
+        }
+
+        # Compute movement series if baseline_month is provided and valid
+        if baseline_month and baseline_month in months:
+            movement_series = {}
+            baseline_values = {}
+            for g in groups_sorted:
+                vals = series[g]
+                bi = months.index(baseline_month)
+                base_val = vals[bi]
+                baseline_values[g] = base_val
+                movement_series[g] = [round(v - base_val, 2) for v in vals]
+            result['movement_series'] = movement_series
+            result['baseline_month'] = baseline_month
+            result['baseline_values'] = baseline_values
+
+        return jsonify(result)
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/download-trend-line')
+def download_trend_line():
+    """Download trend line data as Excel (2-3 sheets: Summary, Trend Data, Movement Data)"""
+    try:
+        config = load_config()
+        project_name = config.get('current_project')
+
+        if not project_name:
+            return jsonify({'success': False, 'error': 'No project selected'}), 400
+
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        group_column = request.args.get('group_column', '')
+        value_column = request.args.get('value_column', '')
+        agg_method = request.args.get('agg_method', 'count').lower()
+        top_n = int(request.args.get('top_n', '10'))
+        specific_groups = request.args.getlist('specific_groups')
+        baseline_month = request.args.get('baseline_month', '')
+        trend_start_date = request.args.get('trend_start_date', '')
+        trend_end_date = request.args.get('trend_end_date', '')
+
+        if not group_column:
+            return jsonify({'success': False, 'error': 'No group column specified'}), 400
+
+        settings = load_project_settings(project_name)
+        df = get_cached_dataframe(project_name)
+        if df is None:
+            return jsonify({'success': False, 'error': 'No data available'}), 404
+
+        date_column = settings.get('date_column', '')
+        if not date_column or date_column not in df.columns:
+            return jsonify({'success': False, 'error': 'No date column configured'}), 400
+
+        if group_column not in df.columns:
+            return jsonify({'success': False, 'error': f'Column "{group_column}" not found'}), 400
+
+        df = df.copy()
+        df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
+
+        # Use trend-specific dates if provided, else fall back to main filter dates
+        eff_start = trend_start_date if trend_start_date else start_date
+        eff_end = trend_end_date if trend_end_date else end_date
+
+        if eff_start and eff_end:
+            s = pd.to_datetime(eff_start)
+            e = pd.to_datetime(eff_end)
+            df = df[(df[date_column] >= s) & (df[date_column] <= e)]
+
+        if len(df) == 0:
+            return jsonify({'success': False, 'error': 'No data in selected range'}), 400
+
+        df[group_column] = df[group_column].astype(str).fillna('(blank)').replace('nan', '(blank)')
+
+        # Determine groups
+        if top_n == 0 and specific_groups:
+            selected_groups = specific_groups
+        else:
+            if agg_method == 'sum' and value_column and value_column in df.columns:
+                df['_val'] = pd.to_numeric(df[value_column], errors='coerce').fillna(0)
+                group_ranks = df.groupby(group_column)['_val'].sum().sort_values(ascending=False)
+            else:
+                group_ranks = df[group_column].value_counts()
+            n = top_n if top_n > 0 else 10
+            selected_groups = group_ranks.head(n).index.tolist()
+
+        df['_month'] = df[date_column].dt.to_period('M').astype(str)
+
+        if agg_method == 'sum' and value_column and value_column in df.columns:
+            df['_val'] = pd.to_numeric(df[value_column], errors='coerce').fillna(0)
+            filtered = df[df[group_column].isin(selected_groups)]
+            pivot = filtered.groupby(['_month', group_column])['_val'].sum().unstack(fill_value=0)
+        else:
+            filtered = df[df[group_column].isin(selected_groups)]
+            pivot = filtered.groupby(['_month', group_column]).size().unstack(fill_value=0)
+
+        months = sorted(pivot.index.tolist())
+        groups_in_pivot = [g for g in selected_groups if g in pivot.columns]
+
+        # Sheet 1: Summary
+        agg_label = agg_method.upper()
+        val_label = value_column if value_column and agg_method == 'sum' else '(Row Count)'
+        summary_rows = [
+            {'Field': 'Project', 'Value': project_name},
+            {'Field': 'Date Range', 'Value': f'{eff_start} to {eff_end}'},
+            {'Field': 'Group Column', 'Value': group_column},
+            {'Field': 'Value Column', 'Value': val_label},
+            {'Field': 'Aggregation', 'Value': agg_label},
+            {'Field': 'Groups', 'Value': len(groups_in_pivot)},
+            {'Field': 'Months', 'Value': len(months)},
+        ]
+        if baseline_month and baseline_month in months:
+            summary_rows.append({'Field': 'Baseline Month', 'Value': baseline_month})
+        summary_data = pd.DataFrame(summary_rows)
+
+        # Sheet 2: Trend Data (months as rows, groups as columns)
+        trend_rows = []
+        for m in months:
+            row = {'Month': m}
+            for g in groups_in_pivot:
+                row[g] = round(float(pivot.loc[m, g]), 2) if m in pivot.index and g in pivot.columns else 0
+            trend_rows.append(row)
+        trend_df = pd.DataFrame(trend_rows)
+
+        sheets = [
+            ('Summary', summary_data),
+            ('Raw Data', trend_df)
+        ]
+
+        # Sheet 3: Movement Data (if baseline_month provided)
+        if baseline_month and baseline_month in months:
+            movement_rows = []
+            for m in months:
+                row = {'Month': m}
+                for g in groups_in_pivot:
+                    raw_val = round(float(pivot.loc[m, g]), 2) if m in pivot.index and g in pivot.columns else 0
+                    base_val = round(float(pivot.loc[baseline_month, g]), 2) if baseline_month in pivot.index and g in pivot.columns else 0
+                    row[g] = round(raw_val - base_val, 2)
+                movement_rows.append(row)
+            movement_df = pd.DataFrame(movement_rows)
+            sheets.append(('Movement Data', movement_df))
+
+        output = io.BytesIO()
+        _write_xlsx_raw(sheets, output)
+        output.seek(0)
+
+        def _fmt(d):
+            try:
+                return pd.to_datetime(d).strftime('%d%b%Y')
+            except:
+                return d
+
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'Trend_Line_{agg_label}_{_fmt(eff_start)}_to_{_fmt(eff_end)}.xlsx'
+        )
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/download-filtered')
@@ -2085,7 +2344,7 @@ class Api:
             webview_window.minimize()
             return {'success': True}
         except Exception as e:
-            print(f"Minimize error: {e}")
+            log.error("Minimize error: %s", e)
             return {'success': False, 'error': str(e)}
 
     def maximize_window(self):
@@ -2099,7 +2358,7 @@ class Api:
                 is_maximized = True
             return {'success': True, 'maximized': is_maximized}
         except Exception as e:
-            print(f"Maximize error: {e}")
+            log.error("Maximize error: %s", e)
             return {'success': False, 'error': str(e)}
 
     def close_window(self):
@@ -2108,7 +2367,7 @@ class Api:
             webview_window.destroy()
             return {'success': True}
         except Exception as e:
-            print(f"Close error: {e}")
+            log.error("Close error: %s", e)
             return {'success': False, 'error': str(e)}
 
     def get_data_path(self):
@@ -2266,13 +2525,9 @@ def wait_for_server(timeout=30):
 
 
 if __name__ == '__main__':
-    print("=" * 60)
-    print("  Data Analytical and Compilation Tool")
-    print("  Multi-Project Support")
-    print("=" * 60)
-    print(f"  Data Directory: {APP_DIR}")
-    print(f"  Projects Directory: {PROJECTS_DIR}")
-    print("=" * 60)
+    log.info("Data Analytical and Compilation Tool — Multi-Project Support")
+    log.info("Data Directory: %s", APP_DIR)
+    log.info("Projects Directory: %s", PROJECTS_DIR)
 
     if HAS_WEBVIEW:
         api = Api()
@@ -2317,4 +2572,4 @@ if __name__ == '__main__':
         except KeyboardInterrupt:
             pass
 
-    print("\nApplication closed.")
+    log.info("Application closed.")
