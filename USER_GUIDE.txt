@@ -1,6 +1,6 @@
 ================================================================================
                DATA COMPILATION TOOL - USER GUIDE
-                        Version 3.0
+                        Version 3.4
 ================================================================================
 
 WELCOME!
@@ -41,11 +41,21 @@ FEATURES
    - Click "View Dashboard" or press Ctrl+B
    - Select date range to filter data
    - View Top 10 analysis charts (configurable columns)
-   - Monthly trend analysis displayed inline
+   - Monthly Trend Line Chart with group-by column, SUM/COUNT toggle,
+     Top N selector (5/10/15/20/25), and specific group search
+   - ECG/Medical Monitor Theme: click the heart ECG button to toggle
+     a dark neon medical monitor look on the trend chart
+   - Movement Mode: click MOVEMENT toggle, select a baseline month,
+     and see deviations displayed as a sequential pulse chart — one
+     continuous line with all groups side by side per month, color-coded
+     dots with compact labels (e.g. +74 (Baba: 1.7K))
+   - Trend Date Range: set independent start/end dates for the trend
+     chart within the main filter range
    - Compare periods side-by-side
    - Column analysis with type, fill %, unique count, duplicates
    - Export PDF reports
-   - Download Top 10 data as Excel (Summary + Data sheets)
+   - Download Top 10 data and Trend data as Excel
+     (3-sheet workbook when baseline is selected: Summary + Raw + Movement)
 
 5. DOWNLOAD DATA
    - Click "Download Data" or press Ctrl+D
@@ -78,6 +88,11 @@ Files per project:
 - upload_log.json (upload history)
 - audit_log.json (activity log)
 - uploads\ folder (backup of uploaded files)
+
+Application log:
+- app.log (rotating log file, max 2 MB, 3 backups kept)
+  Located in the Data\ folder alongside your projects.
+  Useful for diagnosing startup or runtime issues.
 
 Note: This location is automatically chosen to ensure you have write permissions.
 
