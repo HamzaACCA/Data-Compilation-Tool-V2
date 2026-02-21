@@ -44,7 +44,11 @@ A smart analytical tool with multi-project support that automatically consolidat
 
 ### Dashboard
 23. **Visual Bar Charts** - Color-coded gradient bar charts for Top 10 data
-24. **Inline Trend Analysis** - Monthly trend chart displayed below stats cards
+24. **Monthly Trend Line Chart** - Multi-line chart with group-by column, SUM/COUNT toggle, Top N selector (5/10/15/20/25), specific group search with chip input, Y-axis scaling, hover tooltips, color legend, and Excel download (2-sheet: Summary + Trend Data)
+25. **ECG/Medical Monitor Theme** - Toggle neon green-on-black medical monitor styling on trend chart (heart icon button), with glow effects on dots and lines
+26. **Movement Mode** - RAW/MOVEMENT toggle shows deviation from user-selected baseline month as a bipolar chart (zero line at center, positive above, negative below)
+27. **Trend-Specific Date Range** - Independent start/end date inputs for the trend chart, clamped within main filter range, auto-reset on Apply Filter
+28. **Baseline Month Picker** - Dropdown populated from available months; 3-sheet Excel download when baseline selected (Summary + Raw Data + Movement Data)
 25. **Inline Column Analysis** - Always-visible column stats table on dashboard (type, fill %, unique count, duplicates Yes/No) with Excel download
 26. **Compare Periods** - Side-by-side comparison with column-level breakdown (toggle modal), 3-sheet Excel download (Summary + Comparison + Data)
 27. **Advanced Comparative Analysis** - Group-by aggregation (SUM/COUNT/AVERAGE/MIN/MAX) across two periods with numeric value columns, inline results section with Excel download (3-sheet: Summary + Comparison + Data)
@@ -57,22 +61,22 @@ A smart analytical tool with multi-project support that automatically consolidat
 34. **Auto Date Range** - Filter dates auto-populate with earliest and latest dates from data
 
 ### Performance
-35. **Fast Excel Reader** - python-calamine (Rust-based) replaces openpyxl for ~10x faster uploads
-36. **Fast Excel Writer** - Raw XML generation bypasses xlsxwriter overhead for ~3x faster Excel generation, with datetime formatting (dd-MMM-YYYY) and multi-sheet support
-37. **Lazy Excel Cache** - Excel file generated on download only, not on every upload
-38. **Streaming CSV Downloads** - CSV downloads use in-memory `BytesIO` streaming (no temp files on disk)
-39. **In-Memory Excel Downloads** - Filtered and comparison Excel downloads use `BytesIO` with `Content-Length` headers (no temp files)
-40. **Memory Caching** - Dataframes cached in memory with 5-minute TTL; all read-only endpoints use `get_cached_dataframe()`
-41. **Cache Invalidation** - Cache is cleared on upload, delete upload, mapped upload, and data reset
-42. **DataFrame Optimization** - Automatic memory optimization (categories, downcasting, ~79% reduction); triggers on datasets >10K rows and on mapped uploads
-43. **Chunked File Reading** - Large CSV files (>50MB) read in chunks
-44. **Lazy Loading** - Upload log loads in pages with "Load More"
-45. **Performance Monitor** - Bottom-left indicator showing accurate cache size (uses `memory_usage(deep=True)` for DataFrames)
+41. **Fast Excel Reader** - python-calamine (Rust-based) replaces openpyxl for ~10x faster uploads
+42. **Fast Excel Writer** - Raw XML generation bypasses xlsxwriter overhead for ~3x faster Excel generation, with datetime formatting (dd-MMM-YYYY) and multi-sheet support
+43. **Lazy Excel Cache** - Excel file generated on download only, not on every upload
+44. **Streaming CSV Downloads** - CSV downloads use in-memory `BytesIO` streaming (no temp files on disk)
+45. **In-Memory Excel Downloads** - Filtered and comparison Excel downloads use `BytesIO` with `Content-Length` headers (no temp files)
+46. **Memory Caching** - Dataframes cached in memory with 5-minute TTL; all read-only endpoints use `get_cached_dataframe()`
+47. **Cache Invalidation** - Cache is cleared on upload, delete upload, mapped upload, and data reset
+48. **DataFrame Optimization** - Automatic memory optimization (categories, downcasting, ~79% reduction); triggers on datasets >10K rows and on mapped uploads
+49. **Chunked File Reading** - Large CSV files (>50MB) read in chunks
+50. **Lazy Loading** - Upload log loads in pages with "Load More"
+51. **Performance Monitor** - Bottom-left indicator showing accurate cache size (uses `memory_usage(deep=True)` for DataFrames)
 
 ### Window Controls
-46. **Standard Maximize/Restore** - Works like normal Windows applications
-47. **Double-Click Title Bar** - Double-click to maximize/restore window
-48. **Draggable Title Bar** - Title bar is draggable only when not maximized
+52. **Standard Maximize/Restore** - Works like normal Windows applications
+53. **Double-Click Title Bar** - Double-click to maximize/restore window
+54. **Draggable Title Bar** - Title bar is draggable only when not maximized
 
 ## Tech Stack
 
@@ -158,7 +162,8 @@ Data Compilation V3/
 | `/api/download-comparison` | GET | Download full comparison as Excel (3-sheet: Summary + Comparison + Data) |
 | `/api/advanced-analysis` | GET | Advanced group-by aggregation comparison across two periods (top 50 results) |
 | `/api/download-advanced-analysis` | GET | Download advanced analysis as Excel (3-sheet: Summary + Comparison + Data) |
-| `/api/trend-analysis` | GET | Get monthly trend data |
+| `/api/trend-line-data` | GET | Get monthly trend line data (supports `group_column`, `value_column`, `agg_method`, `top_n`, `specific_groups`, `baseline_month`, `trend_start_date`, `trend_end_date` params; returns `movement_series` when baseline valid) |
+| `/api/download-trend-line` | GET | Download trend line data as Excel (2-sheet without baseline; 3-sheet with baseline: Summary + Raw Data + Movement Data) |
 
 ### Data Management
 | Endpoint | Method | Description |
@@ -480,31 +485,73 @@ The `.env` file is listed in `.gitignore` and will never be committed.
 
 ## Changelog
 
-### V3.1 — 30-Jan-2026 (Bug Fixes + Download Speed)
+See **[CHANGELOG.md](CHANGELOG.md)** for version history (V3.1, V3.2, V3.3).
 
-**Bug Fixes:**
-- Fixed `delete_upload` unbound `rows_removed` variable when pickle file doesn't exist
-- Fixed `delete_upload` not clearing cache or removing stale Excel after row removal
-- Fixed `upload_mapped_file` not clearing cache after saving pickle
-- Fixed `upload_mapped_file` not running `optimize_dataframe()` on uploaded data
-- Fixed `reset_consolidated` not clearing cache after deleting data files
-- Fixed `reset_consolidated` not logging to audit log
-- Fixed `_write_excel_fast` crashing on NaN/Inf values — enabled `nan_inf_to_errors` on all 6 `xlsxwriter.Workbook` instances
-- Fixed `_write_excel_fast` writing raw datetime objects — now converts to `dd-MMM-YYYY` formatted strings
-- Fixed `get_memory_stats` returning wrong cache size — uses `memory_usage(deep=True).sum()` for DataFrames instead of `sys.getsizeof()`
-- Fixed `combine_files` optimization condition `% 10000 == 0` (almost never triggers) — changed to `> 10000`
-- Fixed Escape key not closing Summary and Audit Log modals in `index.html`
-- Fixed dark mode not applying to summary modal "Column Types" header — replaced hardcoded `color:#2c3e50` with `.summary-heading` CSS class
+---
 
-**Enhancements:**
-- Raw XML Excel writer (`_write_xlsx_raw`) — generates xlsx via direct XML + zipfile, ~3x faster than xlsxwriter (14s vs 42s for 18K rows × 152 cols)
-- All Excel download endpoints (filtered, top10, comparison, advanced analysis) now use raw XML writer
-- Streaming CSV downloads — `/download?format=csv` uses `BytesIO` instead of writing temp files to disk
-- In-memory filtered downloads — `/api/download-filtered` uses `BytesIO` for both CSV and Excel (no temp files)
-- All read-only endpoints now use `get_cached_dataframe()` instead of direct `pd.read_pickle()`/`pd.read_excel()` (15+ endpoints)
-- PyWebView save dialogs now use `get_cached_dataframe()` and `_write_excel_fast()` instead of `pd.read_pickle()` and `df.to_excel()`
-- `Content-Length` headers added to all `BytesIO` responses for accurate download progress
-- Removed duplicate `import os`; moved `import io` and `import xlsxwriter` to top-level imports
+## Development Notes & Learnings
+
+### Dashboard Performance Optimization
+
+**Problem:** Dashboard was loading slowly (3-5 seconds).
+
+**Root Causes & Fixes:**
+1. **Sequential API calls** — Changed to `Promise.all()` for parallel loading
+   - Init phase: `Promise.all([loadProjectInfo(), loadColumns(), loadSettings(), loadDateRange()])`
+   - Post-load: `Promise.all([onTrendControlChange(), loadColumnStats()])`
+
+2. **Slow `/api/columns` endpoint** — Added `columns_cache` dictionary
+   - Before: 677ms (runs `pd.to_datetime()` on 152 columns to detect date columns)
+   - After: 12ms (cached)
+
+3. **Slow `/api/column-stats` endpoint** — Added cache with `colstats_` prefix
+   - Before: 1051ms (runs `nunique()` on all 152 columns)
+   - After: 10ms (cached)
+
+**Final Performance:** ~590ms total dashboard load (with cache warm)
+
+### Common Code Issues to Check
+
+1. **Orphan braces** — When removing code blocks, check for leftover `}` that causes syntax errors
+2. **Hidden elements** — Cards with `display:none` need a trigger to show; verify default selection
+3. **Missing HTML elements** — Verify all `getElementById()` references have matching HTML `id=` attributes
+4. **Cache invalidation** — Always call `clear_cache()` after data mutations (upload, delete, reset)
+
+### Testing Checklist
+
+```bash
+# 1. JavaScript syntax validation
+node --check /tmp/extracted_js.js
+
+# 2. Brace/paren/bracket balance
+grep -o '{' file.html | wc -l  # should match } count
+
+# 3. API endpoint test
+curl -s "http://127.0.0.1:5000/api/endpoint" | python3 -c "import sys,json; print(json.load(sys.stdin))"
+
+# 4. Full dashboard flow test
+curl -s -w "HTTP: %{http_code}\n" "http://127.0.0.1:5000/dashboard"
+```
+
+### CSS Line Chart Technique
+
+The line chart uses pure CSS (no canvas/SVG libraries):
+- **Dots:** Positioned `div` elements with `border-radius: 50%`
+- **Lines:** Rotated `div` elements using `transform: rotate(Xdeg)` calculated from `Math.atan2(dy, dx)`
+- **Grid:** Absolute-positioned horizontal `div` lines at percentage heights
+- **Tooltips:** CSS `::after` pseudo-element with `data-tooltip` attribute
+
+### ECG/Movement Chart — Sequential Pulse Design
+
+- **Sequential pulse:** Months shown once on X-axis, all groups plotted side by side within each month, ONE continuous line connects all points left-to-right
+- **Bipolar Y-axis:** Maps `[-niceMax, +niceMax]` to `[0%, 100%]`, zero baseline at 50% center
+- **Pixel-accurate lines:** Line segment angle/length calculated using actual container pixel dimensions (aspect ratio correction) so lines connect properly across months
+- **Dot labels:** Every dot labeled with compact values: `+74 (Baba: 1.7K)` — movement value + short group name + raw value in K/M format
+- **Month separators:** Vertical dashed lines between month groups, baseline month marked "(BASELINE)"
+- **ECG theme:** Scoped CSS via `#trendLineCard.ecg-theme` — black bg, neon green line, monospace font
+- **Neon colors:** `ecgColors` array (cyan, magenta, lime, yellow, red) replaces `lineColors` when theme active
+- **CSS classes:** `.ecg-month-sep`, `.ecg-dot-label`, `.ecg-x-label`, `.ecg-mode` (x-labels override)
+- **State variables:** `currentChartMode` ('raw'/'movement'), `ecgThemeActive` (boolean)
 
 ---
 
@@ -524,6 +571,6 @@ A full architectural rewrite is planned. See **[V4_ARCHITECTURE_PLAN.md](V4_ARCH
 
 ---
 
-**Version:** 3.1
-**Last Updated:** 31-Jan-2026
+**Version:** 3.4
+**Last Updated:** 21-Feb-2026
 **Developer:** Hamza Yahya - Internal Audit
