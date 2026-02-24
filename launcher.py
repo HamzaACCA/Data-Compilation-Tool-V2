@@ -188,12 +188,21 @@ def get_cached_dataframe(project_name, force_reload=False):
     # Load from disk
     if os.path.exists(files['pickle']):
         df = pd.read_pickle(files['pickle'])
+        # Pre-convert date column so endpoints don't repeat pd.to_datetime()
+        settings = load_project_settings(project_name)
+        date_col = settings.get('date_column', '')
+        if date_col and date_col in df.columns and not pd.api.types.is_datetime64_any_dtype(df[date_col]):
+            df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
         data_cache[cache_key] = df
         cache_timestamps[cache_key] = time.time()
         cache_timestamps[f"{cache_key}_mtime"] = os.path.getmtime(files['pickle'])
         return df
     elif os.path.exists(files['excel']):
         df = pd.read_excel(files['excel'])
+        settings = load_project_settings(project_name)
+        date_col = settings.get('date_column', '')
+        if date_col and date_col in df.columns and not pd.api.types.is_datetime64_any_dtype(df[date_col]):
+            df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
         return df
 
     return None
@@ -1347,7 +1356,6 @@ def get_date_range():
             return jsonify({'success': False, 'error': 'No consolidated file exists', 'needs_setup': True})
 
         if date_column and date_column in df.columns:
-            df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
             min_date = df[date_column].min()
             max_date = df[date_column].max()
 
@@ -1384,7 +1392,6 @@ def get_dashboard_stats():
 
         date_column = settings.get('date_column', '')
         if date_column and date_column in df.columns and start_date and end_date:
-            df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
             start = pd.to_datetime(start_date)
             end = pd.to_datetime(end_date)
             filtered_df = df[(df[date_column] >= start) & (df[date_column] <= end)]
@@ -1445,7 +1452,6 @@ def compare_column():
         date_column = settings.get('date_column', '')
 
         if date_column and date_column in df.columns:
-            df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
             df1 = df[(df[date_column] >= pd.to_datetime(start1)) & (df[date_column] <= pd.to_datetime(end1))]
             df2 = df[(df[date_column] >= pd.to_datetime(start2)) & (df[date_column] <= pd.to_datetime(end2))]
         else:
@@ -1514,7 +1520,6 @@ def download_comparison():
         date_column = settings.get('date_column', '')
 
         if date_column and date_column in df.columns:
-            df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
             df1 = df[(df[date_column] >= pd.to_datetime(start1)) & (df[date_column] <= pd.to_datetime(end1))]
             df2 = df[(df[date_column] >= pd.to_datetime(start2)) & (df[date_column] <= pd.to_datetime(end2))]
         else:
@@ -1613,7 +1618,6 @@ def advanced_analysis():
             if col not in df.columns:
                 return jsonify({'success': False, 'error': f'Column "{col}" not found'}), 404
 
-        df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
         df[value_column] = pd.to_numeric(df[value_column], errors='coerce')
 
         df1 = df[(df[date_column] >= pd.to_datetime(start1)) & (df[date_column] <= pd.to_datetime(end1))]
@@ -1688,7 +1692,6 @@ def download_advanced_analysis():
         if df is None:
             return jsonify({'success': False, 'error': 'No data available'}), 404
 
-        df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
         df[value_column] = pd.to_numeric(df[value_column], errors='coerce')
 
         df1 = df[(df[date_column] >= pd.to_datetime(start1)) & (df[date_column] <= pd.to_datetime(end1))]
@@ -1966,8 +1969,11 @@ def get_trend_line_data():
         if group_column not in df.columns:
             return jsonify({'success': False, 'error': f'Column "{group_column}" not found'})
 
-        df = df.copy()
-        df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
+        # Slim copy: only columns needed for trend calculation
+        cols_needed = [date_column, group_column]
+        if agg_method == 'sum' and value_column and value_column in df.columns:
+            cols_needed.append(value_column)
+        df = df[cols_needed].copy()
 
         # Use trend-specific dates if provided, else fall back to main filter dates
         eff_start = trend_start_date if trend_start_date else start_date
@@ -2094,8 +2100,11 @@ def download_trend_line():
         if group_column not in df.columns:
             return jsonify({'success': False, 'error': f'Column "{group_column}" not found'}), 400
 
-        df = df.copy()
-        df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
+        # Slim copy: only columns needed for trend calculation
+        cols_needed = [date_column, group_column]
+        if agg_method == 'sum' and value_column and value_column in df.columns:
+            cols_needed.append(value_column)
+        df = df[cols_needed].copy()
 
         # Use trend-specific dates if provided, else fall back to main filter dates
         eff_start = trend_start_date if trend_start_date else start_date
@@ -2222,7 +2231,6 @@ def download_filtered():
         date_column = settings.get('date_column', '')
 
         if date_column and date_column in df.columns and start_date and end_date:
-            df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
             start = pd.to_datetime(start_date)
             end = pd.to_datetime(end_date)
             filtered_df = df[(df[date_column] >= start) & (df[date_column] <= end)]
@@ -2281,7 +2289,6 @@ def download_top10():
 
         # Filter by date range
         if date_column and date_column in df.columns and start_date and end_date:
-            df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
             start = pd.to_datetime(start_date)
             end = pd.to_datetime(end_date)
             filtered_df = df[(df[date_column] >= start) & (df[date_column] <= end)]
@@ -2446,7 +2453,6 @@ class Api:
             date_column = settings.get('date_column', '')
 
             if date_column and date_column in df.columns:
-                df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
                 start = pd.to_datetime(start_date)
                 end = pd.to_datetime(end_date)
                 filtered_df = df[(df[date_column] >= start) & (df[date_column] <= end)]

@@ -1,5 +1,27 @@
 # Changelog
 
+## V3.5 — 24-Feb-2026 (Dual Trend Charts + Performance Optimization)
+
+**New Features:**
+- **Dual Trend Charts** — single trend card replaced with a `trendSection` containing shared controls, a COUNT card, and a SUM card; both charts always visible
+- **Multi-select legend isolation** — click legend items to select/deselect groups for isolation, ESC clears all selections
+- **Dashboard state persistence** — `saveUiState()` writes filter dates, trend settings, ECG toggles, baseline month to `localStorage` per project; restored on page load
+
+**Performance Optimization:**
+- **Pre-convert date column in cache** — `get_cached_dataframe()` now calls `pd.to_datetime()` once on load (guarded by `is_datetime64_any_dtype`); eliminates redundant conversion across all endpoints
+- **Removed 11 redundant `pd.to_datetime()` calls** — from `get_date_range`, `get_dashboard_stats`, `compare_column`, `download_filtered`, `download_comparison`, `advanced_analysis`, `get_trend_line_data`, `download_trend_line`, `download_column_stats`, `download_advanced_analysis`, `data_summary`
+- **Fixed latent mutation bug** — several endpoints were modifying the cached DataFrame directly without `.copy()`, silently converting the date column in-place on the shared cache object
+- **Slim column copy in trend endpoints** — `get_trend_line_data()` and `download_trend_line()` now do `df[cols_needed].copy()` (2-3 cols) instead of `df.copy()` (all 153 cols)
+- **Benchmarks (37,740 rows × 153 cols):** `pd.to_datetime()` per endpoint 5-9ms → 0ms; `df.copy()` 54ms → ~5ms; single trend call ~180ms → ~80ms; dual-fetch ~400ms → ~170ms
+
+**Frontend:**
+- `onTrendControlChange()` fires `Promise.all` with two `/api/trend-line-data` calls (agg_method=count, agg_method=sum)
+- Shared rendering functions: `renderRawChart()`, `renderMovementChart()`, `attachChartHover()`, `toggleIsolate()`, `applyIsolation()`, `renderLegend()`, `buildLabelHtml()`
+- ECG theme scoped to `.ecg-theme-wrap` class on `wrapCount`/`wrapSum` divs
+- Removed: `currentAggMethod`, `lastTrendLineData`, `ecgThemeActive`, `currentChartMode`, `setAggMethod()`, `renderLineChart()`, `renderEcgChart()`, `renderLineLegend()`, `renderLineSummary()`, `toggleEcgTheme()`, `.agg-toggle` CSS
+
+---
+
 ## V3.4 — 21-Feb-2026 (Structured Logging)
 
 **New:**

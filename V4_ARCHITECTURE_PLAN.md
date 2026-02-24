@@ -570,7 +570,7 @@ These V3 functions should be extracted and refactored into V4 services:
 | `_write_xlsx_raw()` | `utils/excel_writer.py` | Keep as-is |
 | `_write_excel_fast()` | `utils/excel_writer.py` | Keep as-is |
 | `optimize_dataframe()` | `utils/dataframe.py` | Keep as-is |
-| `get_cached_dataframe()` | `services/cache_service.py` | Refactor for async |
+| `get_cached_dataframe()` | `services/cache_service.py` | Refactor for async; V3.5 pre-converts date column on load — port this pattern |
 | `clear_cache()` | `services/cache_service.py` | Refactor for async |
 | `combine_files()` | `services/file_service.py` | Refactor for project context |
 | Dashboard stat logic | `services/analytics_service.py` | Extract from route handlers |

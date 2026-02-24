@@ -267,7 +267,9 @@ CACHE_TTL = 300  # 5 minutes
 
 def get_cached_dataframe(project_name, force_reload=False):
     # Returns cached dataframe or loads from disk
+    # Pre-converts configured date column to datetime on load (guarded by is_datetime64_any_dtype)
     # Used by ALL read-only endpoints (stats, columns, dashboard, downloads, comparisons, etc.)
+    # Endpoints NO LONGER call pd.to_datetime() on the date column — it's already datetime in cache
 
 def clear_cache(project_name=None):
     # Clears memory cache
@@ -473,6 +475,14 @@ from launcher import app as application
 | Reduction | — | ~79% |
 | Time cost | — | ~300ms |
 
+**Trend Endpoint Optimization (37,740 rows × 153 cols):**
+| Step | Before | After |
+|------|--------|-------|
+| `pd.to_datetime()` per endpoint | 5-9ms | 0ms (pre-converted in cache) |
+| `df.copy()` (all cols) | 54ms | ~5ms (slim 2-3 col copy) |
+| Single trend call | ~180ms | ~80ms |
+| Dual-fetch (COUNT+SUM) | ~400ms | ~170ms |
+
 ## Environment Variables
 
 Store secrets in `.env` (git-ignored):
@@ -508,7 +518,17 @@ See **[CHANGELOG.md](CHANGELOG.md)** for version history (V3.1, V3.2, V3.3).
    - Before: 1051ms (runs `nunique()` on all 152 columns)
    - After: 10ms (cached)
 
-**Final Performance:** ~590ms total dashboard load (with cache warm)
+4. **Redundant `pd.to_datetime()` in 11 endpoints** — Date column now pre-converted once in `get_cached_dataframe()` on load
+   - Before: 5-9ms wasted per endpoint call (×11 endpoints)
+   - After: 0ms (already datetime in cache)
+   - Also fixed latent mutation bug: several endpoints modified the cached df without `.copy()`
+
+5. **Full `df.copy()` in trend endpoints** — Slim column copy (`df[cols_needed].copy()`) in `get_trend_line_data()` and `download_trend_line()`
+   - Before: 54ms (copies all 153 columns)
+   - After: ~5ms (copies 2-3 columns)
+   - Single trend call: ~180ms → ~80ms; dual-fetch: ~400ms → ~170ms
+
+**Final Performance:** ~590ms total dashboard load (with cache warm); ~170ms dual trend fetch
 
 ### Common Code Issues to Check
 
@@ -571,6 +591,6 @@ A full architectural rewrite is planned. See **[V4_ARCHITECTURE_PLAN.md](V4_ARCH
 
 ---
 
-**Version:** 3.4
-**Last Updated:** 21-Feb-2026
+**Version:** 3.5
+**Last Updated:** 24-Feb-2026
 **Developer:** Hamza Yahya - Internal Audit
