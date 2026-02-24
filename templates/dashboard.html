@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
     <title>Dashboard - Data Analytical and Compilation Tool</title>
     <style>
         * {
@@ -644,16 +645,150 @@
         .change-negative { color: #e74c3c; font-weight: 500; }
         .change-neutral { color: #7f8c8d; }
 
-        /* Trend Analysis */
-        .trend-chart { padding: 20px 0; }
-        .trend-bar { display: flex; align-items: flex-end; gap: 8px; height: 200px; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; }
-        body.dark-mode .trend-bar { border-color: #0f3460; }
-        .trend-item { flex: 1; display: flex; flex-direction: column; align-items: center; }
-        .trend-fill { width: 100%; background: linear-gradient(180deg, #3498db, #2980b9); border-radius: 4px 4px 0 0; transition: height 0.5s ease; min-height: 4px; }
-        .trend-label { font-size: 0.75em; color: #7f8c8d; margin-top: 8px; text-align: center; }
-        .trend-value { font-size: 0.7em; color: #2c3e50; margin-bottom: 4px; }
-        body.dark-mode .trend-label { color: #95a5a6; }
-        body.dark-mode .trend-value { color: #e0e0e0; }
+        /* Trend Controls */
+        .trend-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+        .trend-controls select { padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85em; background: #fff; color: #2c3e50; cursor: pointer; max-width: 220px; }
+        .trend-controls select:focus { border-color: #3498db; outline: none; box-shadow: 0 0 0 2px rgba(52,152,219,0.2); }
+        body.dark-mode .trend-controls select { background: #1a1a2e; color: #e0e0e0; border-color: #0f3460; }
+        .trend-controls label { font-size: 0.85em; color: #555; font-weight: 500; }
+        body.dark-mode .trend-controls label { color: #aaa; }
+
+        /* Tag badges for COUNT/SUM chart headers */
+        .tag { display: inline-block; font-size: 0.7em; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-left: 6px; }
+        .tag-cnt { background: #eaf4fb; color: #2980b9; }
+        .tag-sum { background: #fef9e7; color: #d4880a; }
+        body.dark-mode .tag-cnt { background: #1a3a5c; color: #5dade2; }
+        body.dark-mode .tag-sum { background: #3d3518; color: #f5b041; }
+
+        /* Chip Input */
+        .chip-input-wrapper { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 6px; background: #fff; min-height: 34px; cursor: text; position: relative; }
+        body.dark-mode .chip-input-wrapper { background: #1a1a2e; border-color: #0f3460; }
+        .chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; background: #e8f4fd; border-radius: 12px; font-size: 0.8em; color: #2c3e50; white-space: nowrap; }
+        body.dark-mode .chip { background: #16213e; color: #aed6f1; }
+        .chip-remove { cursor: pointer; font-size: 1.1em; line-height: 1; color: #95a5a6; font-weight: bold; }
+        .chip-remove:hover { color: #e74c3c; }
+        .chip-search { border: none; outline: none; font-size: 0.85em; flex: 1; min-width: 120px; background: transparent; color: #2c3e50; }
+        body.dark-mode .chip-search { color: #e0e0e0; }
+        .chip-search::placeholder { color: #aaa; }
+        body.dark-mode .chip-search::placeholder { color: #666; }
+        .chip-dropdown { position: absolute; top: 100%; left: 0; right: 0; max-height: 200px; overflow-y: auto; background: #fff; border: 1px solid #ddd; border-radius: 0 0 6px 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 20; display: none; }
+        body.dark-mode .chip-dropdown { background: #16213e; border-color: #0f3460; }
+        .chip-option { padding: 8px 12px; font-size: 0.85em; cursor: pointer; color: #2c3e50; }
+        .chip-option:hover { background: #ecf0f1; }
+        body.dark-mode .chip-option { color: #e0e0e0; }
+        body.dark-mode .chip-option:hover { background: #1a1a2e; }
+        .chip-option.selected { background: #e8f4fd; font-weight: 500; }
+        body.dark-mode .chip-option.selected { background: #0f3460; }
+
+        /* Line Chart */
+        .line-chart-container { position: relative; height: 280px; border-left: 2px solid #ecf0f1; border-bottom: 2px solid #ecf0f1; margin: 15px 0 5px 45px; overflow: hidden; }
+        body.dark-mode .line-chart-container { border-color: #0f3460; }
+        .line-chart-y-labels { position: absolute; left: 0; top: 0; bottom: 0; width: 45px; display: flex; flex-direction: column-reverse; justify-content: space-between; padding: 0; }
+        .line-chart-y-label { font-size: 0.7em; color: #7f8c8d; text-align: right; padding-right: 6px; transform: translateY(50%); }
+        body.dark-mode .line-chart-y-label { color: #95a5a6; }
+        .line-chart-grid-line { position: absolute; left: 0; right: 0; height: 1px; background: #ecf0f1; pointer-events: none; }
+        body.dark-mode .line-chart-grid-line { background: #0f3460; }
+        .line-chart-x-labels { display: flex; justify-content: space-between; margin-left: 45px; padding-top: 6px; }
+        .line-chart-x-label { font-size: 0.72em; color: #7f8c8d; text-align: center; flex: 1; }
+        body.dark-mode .line-chart-x-label { color: #95a5a6; }
+        .line-segment { position: absolute; transform-origin: left center; height: 2px; z-index: 1; border-radius: 1px; transition: opacity .2s; }
+        .line-dot { position: absolute; width: 8px; height: 8px; border-radius: 50%; transform: translate(-50%, 50%); z-index: 10; cursor: default; border: 2px solid #fff; box-sizing: border-box; transition: width 0.2s, height 0.2s, opacity 0.2s; }
+        body.dark-mode .line-dot { border-color: #16213e; }
+        .line-dot:hover::after { content: attr(data-tooltip); position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.88); color: #fff; padding: 4px 9px; border-radius: 4px; font-size: 0.72em; white-space: nowrap; z-index: 20; pointer-events: none; }
+        .line-dot.ecg-hovered { width: 14px; height: 14px; }
+
+        /* Line Chart Legend — clickable with isolation state */
+        .line-chart-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding: 6px 0; justify-content: center; }
+        .legend-item {
+            display: flex; align-items: center; gap: 5px; font-size: 0.8em; color: #555;
+            cursor: pointer; padding: 3px 8px; border-radius: 20px;
+            border: 1.5px solid transparent;
+            transition: opacity .2s, border-color .2s, background .2s;
+            user-select: none;
+        }
+        .legend-item:hover { background: rgba(0,0,0,.04); }
+        .legend-item.lg-isolated { border-color: currentColor; background: rgba(255,255,255,.9); font-weight: 700; }
+        .legend-item.lg-dimmed { opacity: 0.28; }
+        body.dark-mode .legend-item { color: #bbb; }
+        body.dark-mode .legend-item:hover { background: rgba(255,255,255,.06); }
+        body.dark-mode .legend-item.lg-isolated { background: rgba(255,255,255,.08); }
+        .legend-line { width: 18px; height: 3px; border-radius: 2px; flex-shrink: 0; }
+        .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .legend-hint { font-size: .72em; color: #aaa; text-align: center; padding: 2px 0 4px; font-style: italic; }
+        body.dark-mode .legend-hint { color: #666; }
+        .chart-summary { margin-top: 4px; text-align: center; color: #7f8c8d; font-size: .85em; }
+        body.dark-mode .chart-summary { color: #95a5a6; }
+
+        /* ECG / Medical Monitor Theme (scoped to chart wrapper divs via .ecg-theme-wrap) */
+        .ecg-theme-wrap { background: #0a0a0a; border: 1px solid #00802060; border-radius: 8px; padding: 12px 8px 8px; box-shadow: 0 0 20px rgba(0,255,65,0.08); }
+        .ecg-theme-wrap .line-chart-container { border-color: #00802040; }
+        .ecg-theme-wrap .line-chart-grid-line { background: rgba(0,80,0,0.5); }
+        .ecg-theme-wrap .line-chart-y-label { color: #00ff41; font-family: 'Courier New', monospace; }
+        .ecg-theme-wrap .line-chart-x-label { color: #00ff41; font-family: 'Courier New', monospace; }
+        .ecg-theme-wrap .line-dot { border-color: #0a0a0a; }
+        .ecg-theme-wrap .legend-item { color: #00ff41; font-family: 'Courier New', monospace; }
+        .ecg-theme-wrap .legend-item:hover { background: rgba(0,255,65,.06); }
+        .ecg-theme-wrap .legend-item.lg-isolated { background: rgba(0,255,65,.1); }
+        .ecg-theme-wrap .chart-summary { color: #00802090; font-family: 'Courier New', monospace; }
+        .ecg-theme-wrap .legend-hint { color: #00802080; }
+        .ecg-theme-wrap .ecg-x-label { color: #00ff41; font-family: 'Courier New', monospace; }
+        .ecg-theme-wrap .ecg-month-sep { border-left-color: rgba(0,128,0,0.35); }
+        .ecg-theme-wrap .no-data { color: #00804080; }
+        .ecg-baseline-line { position: absolute; left: 0; right: 0; height: 1px; border-top: 2px dashed #ffffff80; z-index: 3; pointer-events: none; }
+        .ecg-baseline-label { position: absolute; right: 4px; top: -14px; font-size: 0.65em; color: #ffffff80; font-family: 'Courier New', monospace; pointer-events: none; }
+        .baseline-highlight { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+
+        /* ECG Sequential Pulse Design */
+        .ecg-month-sep { position: absolute; top: 0; bottom: 0; width: 1px; border-left: 1px dashed rgba(0,128,0,0.25); z-index: 1; pointer-events: none; }
+        /* ECG dot labels — pill, two-line, collision-free, hover pop-out */
+        .ecg-dot-label {
+            position: absolute; font-family: 'Courier New', monospace;
+            z-index: 20; pointer-events: auto; line-height: 1.35;
+            background: rgba(0,14,18,0.94); padding: 2px 6px;
+            border-radius: 8px; border: 1px solid;
+            box-shadow: 0 0 0 3px rgba(0,0,0,0.96);
+            text-align: center; white-space: nowrap; cursor: default;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+        }
+        .ecg-dot-label .lbl-mov  { font-size: 0.68em; font-weight: bold; display: block; }
+        .ecg-dot-label .lbl-grp  { font-size: 0.55em; opacity: 0.75; display: block; }
+        .ecg-dot-label .lbl-full { font-size: 0.52em; opacity: 0; max-height: 0; overflow: hidden; display: block; transition: opacity 0.18s, max-height 0.18s; }
+        /* Light variant for non-ECG RAW mode */
+        .ecg-dot-label[data-ecg="false"] {
+            background: rgba(255,255,255,.97);
+            font-family: 'Segoe UI', sans-serif;
+            box-shadow: 0 2px 8px rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.06);
+        }
+        .ecg-dot-label.ecg-dimmed  { opacity: 0.18; transform: translateX(-50%) scale(0.92) !important; }
+        .ecg-dot-label.ecg-hovered { transform: translateX(-50%) scale(1.3) !important; z-index: 30; padding: 4px 10px; border-width: 1.5px; background: rgba(0,14,18,0.98); }
+        .ecg-dot-label[data-ecg="false"].ecg-hovered { background: rgba(255,255,255,1); }
+        .ecg-dot-label.ecg-hovered .lbl-grp  { opacity: 1; }
+        .ecg-dot-label.ecg-hovered .lbl-full { opacity: 0.85; max-height: 30px; }
+        /* ECG leader lines */
+        .ecg-leader { position: absolute; z-index: 6; pointer-events: none; transition: opacity 0.18s; }
+        .ecg-leader.ecg-dimmed  { opacity: 0.06; }
+        .ecg-leader.ecg-hovered { opacity: 0.9; }
+        .ecg-x-label { position: absolute; transform: translateX(-50%); font-size: 0.72em; color: #7f8c8d; text-align: center; white-space: nowrap; top: 6px; }
+        body.dark-mode .ecg-x-label { color: #95a5a6; }
+        .line-chart-x-labels.ecg-mode { display: block !important; position: relative; height: 40px; }
+
+        .ecg-toggle-btn { background: #444; color: #fff; border: none; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8em; transition: background 0.2s, box-shadow 0.2s; }
+        .ecg-toggle-btn:hover { background: #555; }
+        .ecg-toggle-btn.active { background: #00802080; color: #00ff41; box-shadow: 0 0 8px rgba(0,255,65,0.3); }
+
+        /* Mode toggle (RAW/MOVEMENT) - reuses agg-toggle pattern */
+        .mode-toggle { display: inline-flex; border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
+        .mode-toggle button { padding: 6px 14px; border: none; background: #fff; color: #555; font-size: 0.85em; cursor: pointer; font-weight: 500; transition: background 0.2s, color 0.2s; }
+        .mode-toggle button.active { background: #9b59b6; color: #fff; }
+        .mode-toggle button:hover:not(.active) { background: #ecf0f1; }
+        body.dark-mode .mode-toggle { border-color: #0f3460; }
+        body.dark-mode .mode-toggle button { background: #1a1a2e; color: #aaa; }
+        body.dark-mode .mode-toggle button.active { background: #9b59b6; color: #fff; }
+        body.dark-mode .mode-toggle button:hover:not(.active) { background: #16213e; }
+
+        /* Trend date inputs in controls row */
+        .trend-controls input[type="date"] { padding: 5px 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85em; background: #fff; color: #2c3e50; cursor: pointer; max-width: 150px; }
+        body.dark-mode .trend-controls input[type="date"] { background: #1a1a2e; color: #e0e0e0; border-color: #0f3460; }
 
         /* Date Picker Styling for better visibility */
         input[type="date"] {
@@ -781,15 +916,102 @@
                 </div>
             </div>
 
-            <!-- Inline Trend Analysis -->
-            <div class="card" id="trendCard" style="display:none;">
-                <h2>Monthly Trend Analysis</h2>
-                <div class="trend-chart">
-                    <div class="trend-bar" id="inlineTrendBar">
-                        <div class="no-data">Loading trend data...</div>
+            <!-- Dual Trend Charts Section -->
+            <div id="trendSection" style="display:none;">
+
+                <!-- SHARED CONTROLS CARD -->
+                <div class="card" id="trendControlsCard">
+                    <div class="trend-controls">
+                        <label>Group by:</label>
+                        <select id="trendGroupSelect" onchange="onTrendControlChange()">
+                            <option value="">-- Select Column --</option>
+                        </select>
+                        <label>Show:</label>
+                        <select id="trendShowSelect" onchange="onShowChange()">
+                            <option value="5">Top 5</option>
+                            <option value="10" selected>Top 10</option>
+                            <option value="15">Top 15</option>
+                            <option value="20">Top 20</option>
+                            <option value="25">Top 25</option>
+                            <option value="0">Specific...</option>
+                        </select>
+                        <label>Trend Start:</label>
+                        <input type="date" id="trendStartDate" onchange="onTrendDateChange()">
+                        <label>Trend End:</label>
+                        <input type="date" id="trendEndDate" onchange="onTrendDateChange()">
+                    </div>
+                    <div id="chipRow" class="trend-controls" style="display:none;">
+                        <label>Groups:</label>
+                        <div class="chip-input-wrapper" onclick="focusChipSearch()">
+                            <span id="chipContainer"></span>
+                            <input type="text" class="chip-search" id="chipSearchInput" placeholder="Search groups..." oninput="onChipSearchInput()" onfocus="showChipDropdown()">
+                            <div class="chip-dropdown" id="chipDropdown"></div>
+                        </div>
                     </div>
                 </div>
-                <div id="trendSummary" style="margin-top: 15px; text-align: center; color: #7f8c8d;"></div>
+
+                <!-- COUNT CARD -->
+                <div class="card" id="trendCountCard">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                        <h2 style="margin:0;">Monthly Trend <span class="tag tag-cnt">COUNT</span></h2>
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <button class="ecg-toggle-btn" id="ecgBtnCount" onclick="toggleEcg('Count')" title="ECG Monitor Theme">&#9829; ECG</button>
+                            <button class="btn btn-sm" style="background:#27ae60; padding:6px 12px; font-size:0.8em;" onclick="downloadTrendLineExcel('Count')" title="Download as Excel">&#11015; Excel</button>
+                        </div>
+                    </div>
+                    <div id="wrapCount">
+                        <div style="position:relative;">
+                            <div class="line-chart-y-labels" id="ylCount"></div>
+                            <div class="line-chart-container" id="areaCount">
+                                <div class="no-data">Select a group-by column to see trend</div>
+                            </div>
+                        </div>
+                        <div class="line-chart-x-labels" id="xlCount"></div>
+                        <div class="line-chart-legend" id="legCount"></div>
+                        <div class="legend-hint" id="hintCount">Click groups to select/deselect &middot; ESC to clear all</div>
+                        <div class="chart-summary" id="sumCount"></div>
+                    </div>
+                </div>
+
+                <!-- SUM CARD -->
+                <div class="card" id="trendSumCard">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                        <h2 style="margin:0;">Monthly Trend <span class="tag tag-sum">SUM</span></h2>
+                        <div style="display:flex;gap:6px;align-items:center;">
+                            <button class="ecg-toggle-btn" id="ecgBtnSum" onclick="toggleEcg('Sum')" title="ECG Monitor Theme">&#9829; ECG</button>
+                            <button class="btn btn-sm" style="background:#27ae60; padding:6px 12px; font-size:0.8em;" onclick="downloadTrendLineExcel('Sum')" title="Download as Excel">&#11015; Excel</button>
+                        </div>
+                    </div>
+                    <div class="trend-controls">
+                        <label>Value:</label>
+                        <select id="trendValueSelect" onchange="onTrendControlChange()" style="min-width:180px;">
+                            <option value="">(Row Count)</option>
+                        </select>
+                    </div>
+                    <div class="trend-controls">
+                        <div class="mode-toggle">
+                            <button id="modeRaw" class="active" onclick="setSumChartMode('raw')">RAW</button>
+                            <button id="modeMovement" onclick="setSumChartMode('movement')">MOVEMENT</button>
+                        </div>
+                        <label id="baselineLabel" style="display:none;">Baseline:</label>
+                        <select id="baselineMonthSelect" style="display:none;" onchange="onTrendControlChange()">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>
+                    <div id="wrapSum">
+                        <div style="position:relative;">
+                            <div class="line-chart-y-labels" id="ylSum"></div>
+                            <div class="line-chart-container" id="areaSum">
+                                <div class="no-data">Select a group-by column to see trend</div>
+                            </div>
+                        </div>
+                        <div class="line-chart-x-labels" id="xlSum"></div>
+                        <div class="line-chart-legend" id="legSum"></div>
+                        <div class="legend-hint" id="hintSum">Click groups to select/deselect &middot; ESC to clear all</div>
+                        <div class="chart-summary" id="sumSum"></div>
+                    </div>
+                </div>
+
             </div>
 
             <!-- Column Analysis -->
@@ -962,10 +1184,61 @@
                 input.addEventListener('change', () => { pickerOpen = false; });
             });
 
-            await loadProjectInfo();
-            await loadColumns();
-            await loadSettings();
-            await loadDateRange();
+            await Promise.all([loadProjectInfo(), loadColumns(), loadSettings(), loadDateRange()]);
+
+            // ── Restore saved UI state for this project ───────────────────────
+            try { _savedState = JSON.parse(localStorage.getItem('dash_state_' + currentProject) || 'null'); }
+            catch(e) { _savedState = null; }
+
+            if (_savedState) {
+                // Date range — clamp to actual data bounds
+                const sd = document.getElementById('startDate');
+                const ed = document.getElementById('endDate');
+                if (_savedState.startDate && minDate && _savedState.startDate >= minDate && _savedState.startDate <= (maxDate || '9'))
+                    sd.value = _savedState.startDate;
+                if (_savedState.endDate && maxDate && _savedState.endDate <= maxDate && _savedState.endDate >= (minDate || ''))
+                    ed.value = _savedState.endDate;
+
+                // Trend group column
+                const tgs = document.getElementById('trendGroupSelect');
+                if (_savedState.trendGroup && [...tgs.options].some(o => o.value === _savedState.trendGroup))
+                    tgs.value = _savedState.trendGroup;
+
+                // Trend value column (now always visible in SUM card)
+                const tvs = document.getElementById('trendValueSelect');
+                if (_savedState.trendValue !== undefined && [...tvs.options].some(o => o.value === _savedState.trendValue))
+                    tvs.value = _savedState.trendValue;
+
+                // Top N / specific groups
+                const tss = document.getElementById('trendShowSelect');
+                if (_savedState.trendShow) tss.value = _savedState.trendShow;
+                if (_savedState.trendShow === '0') {
+                    document.getElementById('chipRow').style.display = 'flex';
+                    if (_savedState.specificGroups) { selectedSpecificGroups = _savedState.specificGroups; renderChips(); }
+                }
+
+                // SUM chart mode (RAW vs MOVEMENT)
+                if (_savedState.sumChartMode === 'movement') {
+                    sumChartMode = 'movement';
+                    document.getElementById('modeRaw').classList.remove('active');
+                    document.getElementById('modeMovement').classList.add('active');
+                    document.getElementById('baselineLabel').style.display = '';
+                    document.getElementById('baselineMonthSelect').style.display = '';
+                }
+
+                // Per-chart ECG theme
+                if (_savedState.countEcg) {
+                    countEcg = true;
+                    document.getElementById('wrapCount').classList.add('ecg-theme-wrap');
+                    document.getElementById('ecgBtnCount').classList.add('active');
+                }
+                if (_savedState.sumEcg) {
+                    sumEcg = true;
+                    document.getElementById('wrapSum').classList.add('ecg-theme-wrap');
+                    document.getElementById('ecgBtnSum').classList.add('active');
+                }
+            }
+
             renderChartContainers();
             loadDashboard();
         });
@@ -1044,6 +1317,36 @@
             } else {
                 // Add one empty selector by default
                 addColumnSelector();
+            }
+
+            // Populate trend line group-by dropdown
+            const trendGroupSelect = document.getElementById('trendGroupSelect');
+            if (trendGroupSelect) {
+                trendGroupSelect.innerHTML = '<option value="">-- Select Column --</option>';
+                let firstCol = null;
+                availableColumns.forEach(col => {
+                    if (col !== '_upload_id') {
+                        const opt = document.createElement('option');
+                        opt.value = col;
+                        opt.textContent = col;
+                        trendGroupSelect.appendChild(opt);
+                        if (!firstCol) firstCol = col;
+                    }
+                });
+                // Auto-select first column so chart shows immediately
+                if (firstCol) trendGroupSelect.value = firstCol;
+            }
+
+            // Populate trend line value dropdown (numeric columns only)
+            const trendValueSelect = document.getElementById('trendValueSelect');
+            if (trendValueSelect) {
+                trendValueSelect.innerHTML = '<option value="">(Row Count)</option>';
+                (numericColumns || []).forEach(col => {
+                    const opt = document.createElement('option');
+                    opt.value = col;
+                    opt.textContent = col;
+                    trendValueSelect.appendChild(opt);
+                });
             }
         }
 
@@ -1290,6 +1593,9 @@
             } finally {
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('dashboardContent').style.opacity = '1';
+                _savedState   = null;   // restore complete — stop intercepting future interactions
+                _uiStateReady = true;
+                saveUiState();          // persist current state as the new baseline
             }
         }
 
@@ -1306,47 +1612,811 @@
                 });
             }
 
-            // Load inline trend analysis
-            loadInlineTrend();
+            // Initialize trend date inputs to main filter range
+            const mainStart = document.getElementById('startDate').value;
+            const mainEnd = document.getElementById('endDate').value;
+            const trendStart = document.getElementById('trendStartDate');
+            const trendEnd = document.getElementById('trendEndDate');
+            trendStart.value = mainStart;
+            trendEnd.value = mainEnd;
+            trendStart.min = mainStart;
+            trendStart.max = mainEnd;
+            trendEnd.min = mainStart;
+            trendEnd.max = mainEnd;
 
-            // Load column analysis
-            loadColumnStats();
+            // Restore saved trend dates if within bounds
+            if (_savedState) {
+                if (_savedState.trendStartDate && _savedState.trendStartDate >= mainStart) trendStart.value = _savedState.trendStartDate;
+                if (_savedState.trendEndDate   && _savedState.trendEndDate   <= mainEnd)   trendEnd.value   = _savedState.trendEndDate;
+            }
+
+            // Load trend line chart and column analysis in parallel
+            Promise.all([onTrendControlChange(), loadColumnStats()]);
         }
 
-        async function loadInlineTrend() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
+        // 10-color palette for line chart groups
+        const lineColors = [
+            '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6',
+            '#1abc9c', '#e67e22', '#34495e', '#d35400', '#8e44ad'
+        ];
 
-            if (!startDate || !endDate) return;
+        function formatNumber(val) {
+            if (Number.isInteger(val) || Math.abs(val - Math.round(val)) < 0.001) {
+                return Math.round(val).toLocaleString();
+            }
+            return val.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+        }
 
+        let selectedSpecificGroups = [];
+        let allGroupValues = [];
+        // Dual-chart state
+        let lastCountData = null;
+        let lastSumData   = null;
+        let countEcg      = false;
+        let sumEcg        = false;
+        let sumChartMode  = 'raw'; // 'raw' or 'movement' (COUNT is always 'raw')
+        let countIsolated = new Set();
+        let sumIsolated   = new Set();
+        const ecgColors = ['#00ffff', '#ff00ff', '#00ff41', '#ffff00', '#ff3333', '#ff8800', '#00ccff', '#ff66cc', '#66ff66', '#ffcc00'];
+        const rafHandles = { Count: null, Sum: null };
+
+        // ── Dashboard state persistence (survives refresh) ────────────────────
+        let _savedState    = null;   // holds restored state during initial load
+        let _uiStateReady  = false;  // true after first loadDashboard() completes
+
+        function saveUiState() {
+            if (!currentProject || !_uiStateReady) return;
             try {
-                const response = await fetch(`/api/trend-analysis?start_date=${startDate}&end_date=${endDate}`);
-                const data = await response.json();
+                localStorage.setItem('dash_state_' + currentProject, JSON.stringify({
+                    startDate:      document.getElementById('startDate').value,
+                    endDate:        document.getElementById('endDate').value,
+                    trendGroup:     document.getElementById('trendGroupSelect').value,
+                    trendValue:     document.getElementById('trendValueSelect').value,
+                    trendShow:      document.getElementById('trendShowSelect').value,
+                    specificGroups: selectedSpecificGroups,
+                    trendStartDate: document.getElementById('trendStartDate').value,
+                    trendEndDate:   document.getElementById('trendEndDate').value,
+                    countEcg:       countEcg,
+                    sumEcg:         sumEcg,
+                    sumChartMode:   sumChartMode,
+                    sumBaselineMonth: document.getElementById('baselineMonthSelect').value
+                }));
+            } catch(e) {}
+        }
 
-                if (data.success && data.monthly_counts && data.monthly_counts.length > 0) {
-                    document.getElementById('trendCard').style.display = 'block';
-                    const maxCount = Math.max(...data.monthly_counts.map(m => m.count));
+        function setSumChartMode(mode) {
+            sumChartMode = mode;
+            document.getElementById('modeRaw').classList.toggle('active', mode === 'raw');
+            document.getElementById('modeMovement').classList.toggle('active', mode === 'movement');
+            const showBaseline = mode === 'movement';
+            document.getElementById('baselineLabel').style.display = showBaseline ? '' : 'none';
+            document.getElementById('baselineMonthSelect').style.display = showBaseline ? '' : 'none';
+            onTrendControlChange();
+        }
 
-                    document.getElementById('inlineTrendBar').innerHTML = data.monthly_counts.map(month => `
-                        <div class="trend-item">
-                            <div class="trend-value">${month.count.toLocaleString()}</div>
-                            <div class="trend-fill" style="height: ${(month.count / maxCount) * 100}%"></div>
-                            <div class="trend-label">${formatMonth(month.month)}</div>
-                        </div>
-                    `).join('');
+        function onTrendDateChange() {
+            const mainStart = document.getElementById('startDate').value;
+            const mainEnd = document.getElementById('endDate').value;
+            const trendStart = document.getElementById('trendStartDate');
+            const trendEnd = document.getElementById('trendEndDate');
+            if (mainStart && trendStart.value && trendStart.value < mainStart) trendStart.value = mainStart;
+            if (mainEnd && trendEnd.value && trendEnd.value > mainEnd) trendEnd.value = mainEnd;
+            if (trendStart.value && trendEnd.value && trendStart.value > trendEnd.value) trendEnd.value = trendStart.value;
+            saveUiState();
+            onTrendControlChange();
+        }
 
-                    document.getElementById('trendSummary').innerHTML = `
-                        Total: <strong>${data.total.toLocaleString()}</strong> records |
-                        Average: <strong>${Math.round(data.average).toLocaleString()}</strong> per month
-                    `;
-                } else {
-                    document.getElementById('trendCard').style.display = 'none';
-                }
-            } catch (error) {
-                console.error('Error loading inline trend:', error);
-                document.getElementById('trendCard').style.display = 'none';
+        function populateBaselineMonths(months) {
+            const sel = document.getElementById('baselineMonthSelect');
+            const prev = sel.value;
+            sel.innerHTML = '<option value="">-- Select --</option>';
+            (months || []).forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.textContent = formatMonth(m);
+                sel.appendChild(opt);
+            });
+            if (prev && months && months.includes(prev)) sel.value = prev;
+            if (_savedState && _savedState.sumBaselineMonth && months && months.includes(_savedState.sumBaselineMonth))
+                sel.value = _savedState.sumBaselineMonth;
+        }
+
+        function toggleEcg(which) {
+            if (which === 'Count') { countEcg = !countEcg; }
+            else                   { sumEcg   = !sumEcg;   }
+            const isEcg = which === 'Count' ? countEcg : sumEcg;
+            document.getElementById('ecgBtn' + which).classList.toggle('active', isEcg);
+            const wrap = document.getElementById('wrap' + which);
+            wrap.classList.toggle('ecg-theme-wrap', isEcg);
+            saveUiState();
+            // Re-render that chart
+            if (which === 'Count' && lastCountData) renderCountChart(lastCountData);
+            if (which === 'Sum'   && lastSumData)   renderSumChart(lastSumData);
+        }
+
+        // ── Format helpers ───────────────────────────────────────────────────
+        function fmtY(v) {
+            const a = Math.abs(v);
+            if (a >= 1e6) return (v / 1e6).toFixed(1) + 'M';
+            if (a >= 1e3) return (v / 1e3).toFixed(1) + 'K';
+            return Math.round(v).toLocaleString();
+        }
+        function fmtMov(v) {
+            const a = Math.abs(v), s = v >= 0 ? '+' : '-';
+            if (a >= 1e6) return s + (a / 1e6).toFixed(1) + 'M';
+            if (a >= 1e3) return s + (a / 1e3).toFixed(0) + 'K';
+            return s + Math.round(a).toLocaleString();
+        }
+
+        function getNiceMax(maxVal, ticks) {
+            if (maxVal <= 0) return ticks;
+            const rough = maxVal / (ticks - 1);
+            const mag = Math.pow(10, Math.floor(Math.log10(rough)));
+            const residual = rough / mag;
+            let nice;
+            if (residual <= 1.5) nice = 1;
+            else if (residual <= 3) nice = 2;
+            else if (residual <= 7) nice = 5;
+            else nice = 10;
+            const step = nice * mag;
+            return Math.ceil(maxVal / step) * step;
+        }
+
+        function getNiceMaxBipolar(maxAbs) {
+            if (!maxAbs) return 1;
+            const mag = Math.pow(10, Math.floor(Math.log10(maxAbs)));
+            const r = maxAbs / mag;
+            const n = (r <= 1.5 ? 1 : r <= 3 ? 2 : r <= 7 ? 5 : 10) * mag;
+            return Math.ceil(maxAbs / n) * n;
+        }
+
+        // ── ECG label placement helpers ───────────────────────────────────────
+        function ecgHexToRgb(hex) {
+            return [parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)].join(',');
+        }
+        function ecgPreferredTop(dotY_px, mov, labelH, gap, chartH) {
+            const above = dotY_px - gap - labelH;
+            const below = dotY_px + gap;
+            if (mov >= 0) {
+                if (above >= 0)               return above;
+                if (below + labelH <= chartH) return below;
+                return Math.max(0, above);
+            } else {
+                if (below + labelH <= chartH) return below;
+                if (above >= 0)               return above;
+                return Math.min(chartH - labelH, below);
             }
         }
+        function ecgResolveCollisions(boxes, chartW, chartH) {
+            const PAD = 5, ITERS = 120;
+            for (let iter = 0; iter < ITERS; iter++) {
+                let anyMoved = false;
+                for (let i = 0; i < boxes.length; i++) {
+                    for (let j = i + 1; j < boxes.length; j++) {
+                        const a = boxes[i], b = boxes[j];
+                        const aCy = a.y_top_px + a.h_px / 2, bCy = b.y_top_px + b.h_px / 2;
+                        const xDist = Math.abs(a.cx_px - b.cx_px), yDist = Math.abs(aCy - bCy);
+                        const xNeed = (a.w_px + b.w_px) / 2 + PAD, yNeed = (a.h_px + b.h_px) / 2 + PAD;
+                        if (xDist >= xNeed || yDist >= yNeed) continue;
+                        anyMoved = true;
+                        const xOver = xNeed - xDist, yOver = yNeed - yDist;
+                        if (yOver <= xOver) {
+                            const h = yOver / 2;
+                            if (aCy < bCy) { a.y_top_px -= h; b.y_top_px += h; }
+                            else           { a.y_top_px += h; b.y_top_px -= h; }
+                        } else {
+                            const h = xOver / 2;
+                            if (a.cx_px < b.cx_px) { a.cx_px -= h; b.cx_px += h; }
+                            else                   { a.cx_px += h; b.cx_px -= h; }
+                        }
+                        for (const box of [a, b]) {
+                            box.y_top_px = Math.max(2, Math.min(chartH - box.h_px - 2, box.y_top_px));
+                            box.cx_px    = Math.max(box.w_px / 2 + 4, Math.min(chartW - box.w_px / 2 - 4, box.cx_px));
+                        }
+                    }
+                }
+                if (!anyMoved) break;
+            }
+        }
+        function ecgLeaderLine(x1_px, y1_px, x2_px, y2_px, cW, cH, color) {
+            const x1 = x1_px / cW * 100, y1 = (cH - y1_px) / cH * 100;
+            const x2 = x2_px / cW * 100, y2 = (cH - y2_px) / cH * 100;
+            const dx = (x2 - x1) * cW / 100, dy = (y2 - y1) * cH / 100;
+            const len = Math.sqrt(dx * dx + dy * dy);
+            if (len < 2) return '';
+            const ang = Math.atan2(-dy, dx) * 180 / Math.PI;
+            return `<div class="ecg-leader" style="left:${x1}%;bottom:${y1}%;width:${len / cW * 100}%;height:1px;background:repeating-linear-gradient(90deg,${color} 0,${color} 3px,transparent 3px,transparent 6px);transform:rotate(${ang}deg);transform-origin:left center;opacity:0.5;"></div>`;
+        }
+
+        // ── Build label+leader HTML ──────────────────────────────────────────
+        function buildLabelHtml(boxes, cW, cH, isEcg) {
+            let html = '';
+            // Leaders first (behind labels)
+            boxes.forEach(box => {
+                const line = ecgLeaderLine(box.cx_px, box.y_top_px + box.h_px / 2, box.dotX_px, box.dotY_px, cW, cH, box.color);
+                html += line.replace('class="ecg-leader"', `class="ecg-leader" data-idx="${box.idx}" data-group-idx="${box.groupIndex}"`);
+            });
+            // Labels
+            boxes.forEach(box => {
+                const leftPct = box.cx_px / cW * 100;
+                const botPct  = (cH - box.y_top_px - box.h_px) / cH * 100;
+                const rgb     = box.color.length === 7 ? ecgHexToRgb(box.color) : '0,200,200';
+                html += `<div class="ecg-dot-label" data-idx="${box.idx}" data-group-idx="${box.groupIndex}" data-ecg="${isEcg}" `
+                    + `style="left:${leftPct}%;bottom:${botPct}%;transform:translateX(-50%);color:${box.color};border-color:rgba(${rgb},.45);">`
+                    + `<span class="lbl-mov">${box.movTxt}</span>`
+                    + `<span class="lbl-grp">${box.shortN}</span>`
+                    + `<span class="lbl-full">${box.fullName}</span>`
+                    + `</div>`;
+            });
+            return html;
+        }
+
+        // ── Isolation (multi-select legend) ──────────────────────────────────
+        function toggleIsolate(which, gi) {
+            const sel = which === 'Count' ? countIsolated : sumIsolated;
+            sel.has(gi) ? sel.delete(gi) : sel.add(gi);
+            applyIsolation(which);
+            const data = which === 'Count' ? lastCountData : lastSumData;
+            if (data) renderLegend(which, data);
+        }
+
+        function clearIsolation(which) {
+            const sel = which === 'Count' ? countIsolated : sumIsolated;
+            if (sel.size === 0) return;
+            sel.clear();
+            applyIsolation(which);
+            const data = which === 'Count' ? lastCountData : lastSumData;
+            if (data) renderLegend(which, data);
+        }
+
+        function applyIsolation(which) {
+            const sel  = which === 'Count' ? countIsolated : sumIsolated;
+            const none = sel.size === 0;
+            const area = document.getElementById('area' + which);
+            if (!area) return;
+            area.querySelectorAll('.line-dot[data-group-idx]').forEach(el => {
+                el.style.opacity = none || sel.has(+el.dataset.groupIdx) ? '' : '0.07';
+            });
+            area.querySelectorAll('.line-segment[data-group-idx]').forEach(el => {
+                el.style.opacity = none || sel.has(+el.dataset.groupIdx) ? '' : '0.07';
+            });
+            area.querySelectorAll('.mov-line-seg').forEach(el => {
+                el.style.opacity = none ? '' : '0.12';
+            });
+            area.querySelectorAll('.ecg-dot-label[data-group-idx]').forEach(el => {
+                el.style.opacity = none || sel.has(+el.dataset.groupIdx) ? '' : '0.07';
+            });
+            area.querySelectorAll('.ecg-leader[data-group-idx]').forEach(el => {
+                el.style.opacity = none ? '0.5' : sel.has(+el.dataset.groupIdx) ? '0.5' : '0.04';
+            });
+        }
+
+        // ── Hover handler (shared for both charts) ───────────────────────────
+        function attachChartHover(area, which) {
+            function setHover(idx) {
+                const cRect = area.getBoundingClientRect();
+                area.querySelectorAll('.ecg-dot-label').forEach(el => {
+                    const i = +el.dataset.idx;
+                    el.classList.remove('ecg-hovered', 'ecg-dimmed');
+                    if (i === idx) {
+                        const eRect = el.getBoundingClientRect();
+                        const oY = eRect.top - cRect.top < 14 ? 'top' : cRect.bottom - eRect.bottom < 14 ? 'bottom' : '50%';
+                        const oX = eRect.left - cRect.left < 28 ? 'left' : cRect.right - eRect.right < 28 ? 'right' : '50%';
+                        el.style.transformOrigin = `${oX} ${oY}`;
+                        el.classList.add('ecg-hovered');
+                        el.style.boxShadow = '0 0 0 2px rgba(0,0,0,.96), 0 0 18px ' + el.style.color;
+                    } else {
+                        el.classList.add('ecg-dimmed');
+                        el.style.transformOrigin = '';
+                        el.style.boxShadow = '';
+                    }
+                });
+                area.querySelectorAll('.line-dot[data-idx]').forEach(el => {
+                    const i = +el.dataset.idx;
+                    el.classList.toggle('ecg-hovered', i === idx);
+                    if (i !== idx) el.style.opacity = '0.18';
+                });
+                area.querySelectorAll('.ecg-leader[data-idx]').forEach(el => {
+                    const i = +el.dataset.idx;
+                    el.classList.remove('ecg-hovered', 'ecg-dimmed');
+                    el.classList.add(i === idx ? 'ecg-hovered' : 'ecg-dimmed');
+                });
+            }
+            function clearHover() {
+                area.querySelectorAll('.ecg-dot-label').forEach(el => {
+                    el.classList.remove('ecg-hovered', 'ecg-dimmed');
+                    el.style.transformOrigin = '';
+                    el.style.boxShadow = '';
+                });
+                area.querySelectorAll('.line-dot[data-idx]').forEach(el => {
+                    el.classList.remove('ecg-hovered');
+                    el.style.opacity = '';
+                });
+                area.querySelectorAll('.ecg-leader[data-idx]').forEach(el => {
+                    el.classList.remove('ecg-hovered', 'ecg-dimmed');
+                });
+                applyIsolation(which);
+            }
+            area.addEventListener('mouseover', e => {
+                const lbl = e.target.closest('.ecg-dot-label');
+                const dot = e.target.closest('.line-dot[data-idx]');
+                if (lbl) setHover(+lbl.dataset.idx);
+                else if (dot) setHover(+dot.dataset.idx);
+            });
+            area.addEventListener('mouseout', e => {
+                if (e.target.closest('.ecg-dot-label') || e.target.closest('.line-dot[data-idx]')) clearHover();
+            });
+        }
+
+        // ── Legend (clickable, with multi-select state) ──────────────────────
+        function renderLegend(which, data) {
+            const sel    = which === 'Count' ? countIsolated : sumIsolated;
+            const isEcg  = which === 'Count' ? countEcg : sumEcg;
+            const colors = isEcg ? ecgColors : lineColors;
+            const anySelected = sel.size > 0;
+            document.getElementById('leg' + which).innerHTML = data.groups.map((g, gi) => {
+                const clr = colors[gi % colors.length];
+                const isSelected = sel.has(gi);
+                const isDimmed   = anySelected && !isSelected;
+                const cls = isSelected ? 'legend-item lg-isolated' : isDimmed ? 'legend-item lg-dimmed' : 'legend-item';
+                const total = data.group_totals?.[g] || 0;
+                const dotGlow   = isEcg ? `box-shadow:0 0 5px ${clr};` : '';
+                const dotBorder = isSelected ? `outline:2px solid ${clr};outline-offset:1px;` : '';
+                return `<div class="${cls}" onclick="toggleIsolate('${which}',${gi})" `
+                     + `${isSelected ? `style="color:${clr};"` : ''} `
+                     + `title="${isSelected ? 'Click to deselect' : 'Click to add to selection'}">`
+                     + `<div class="legend-dot" style="background:${clr};${dotGlow}${dotBorder}"></div>`
+                     + `${g} (${formatNumber(total)})`
+                     + (isSelected ? ' <span style="font-size:.7em;opacity:.6;">&#10003;</span>' : '')
+                     + `</div>`;
+            }).join('');
+        }
+
+        // ── RAW chart (two-pass rAF: dots first, then lines + labels) ────────
+        function renderRawChart(which, data, isEcg) {
+            if (rafHandles[which]) { cancelAnimationFrame(rafHandles[which]); rafHandles[which] = null; }
+
+            const area = document.getElementById('area' + which);
+            area.style.height = '280px';
+            const months = data.months;
+            const groups = data.groups;
+            const series = data.series;
+            const n = months.length;
+            const colors = isEcg ? ecgColors : lineColors;
+            const pL = 2, pR = 2, uw = 100 - pL - pR;
+            const xP = i => n > 1 ? pL + (i / (n - 1)) * uw : 50;
+
+            // Find max
+            let rawMax = 0;
+            groups.forEach(g => { (series[g] || []).forEach(v => { if (v > rawMax) rawMax = v; }); });
+            const nm = getNiceMax(rawMax * 1.05, 6);
+            const yP = v => nm > 0 ? (v / nm) * 100 : 0;
+            const gclr = isEcg ? 'rgba(0,80,0,.5)' : '#ecf0f1';
+
+            // Build flat points array
+            const rawPts = [];
+            groups.forEach((g, gi) => {
+                const vals = series[g] || [];
+                vals.forEach((v, mi) => {
+                    rawPts.push({ x: xP(mi), y: yP(v), value: v, group: g, groupIndex: gi, monthIndex: mi, idx: gi * n + mi });
+                });
+            });
+
+            // Pass 1: grid + dots
+            let html = '';
+            for (let i = 0; i <= 6; i++) html += `<div class="line-chart-grid-line" style="bottom:${(i / 6) * 100}%;background:${gclr};"></div>`;
+            rawPts.forEach(p => {
+                const clr = colors[p.groupIndex % colors.length];
+                const gw = isEcg ? `box-shadow:0 0 6px ${clr};` : '';
+                html += `<div class="line-dot" data-idx="${p.idx}" data-group-idx="${p.groupIndex}" `
+                    + `style="left:${p.x}%;bottom:${p.y}%;background:${clr};border-color:${isEcg ? '#0a0a0a' : '#fff'};${gw}"></div>`;
+            });
+            area.innerHTML = html;
+
+            // Y labels
+            let yh = '';
+            for (let i = 0; i <= 6; i++) { const v = nm / 6 * i; yh += `<div class="line-chart-y-label" style="position:absolute;bottom:${yP(v)}%;">${fmtY(Math.round(v))}</div>`; }
+            document.getElementById('yl' + which).innerHTML = yh;
+            const xl = document.getElementById('xl' + which);
+            xl.className = 'line-chart-x-labels';
+            xl.innerHTML = months.map(m => `<div class="line-chart-x-label">${formatMonth(m)}</div>`).join('');
+
+            // Summary
+            const totals = groups.map((g, gi) => ({ name: g, total: (series[g] || []).reduce((a, b) => a + b, 0) })).sort((a, b) => b.total - a.total);
+            document.getElementById('sum' + which).textContent = `Top: ${totals[0]?.name || '-'} (${fmtY(totals[0]?.total || 0)})  ·  ${groups.length} groups`;
+
+            renderLegend(which, data);
+
+            // Pass 2: pixel-accurate lines + collision-free labels + hover + isolation
+            rafHandles[which] = requestAnimationFrame(() => {
+                rafHandles[which] = null;
+                const cW = area.offsetWidth || 900, cH = area.offsetHeight || 280;
+                let extra = '';
+
+                // Lines with data-group-idx
+                groups.forEach((g, gi) => {
+                    const clr = colors[gi % colors.length];
+                    const gw = isEcg ? `box-shadow:0 0 6px ${clr};` : '';
+                    const vals = series[g] || [];
+                    for (let i = 0; i < n - 1; i++) {
+                        const x1 = xP(i), y1 = yP(vals[i] || 0), x2 = xP(i + 1), y2 = yP(vals[i + 1] || 0);
+                        const dx = (x2 - x1) * cW / 100, dy = (y2 - y1) * cH / 100;
+                        const len = Math.sqrt(dx * dx + dy * dy), ang = Math.atan2(-dy, dx) * 180 / Math.PI;
+                        extra += `<div class="line-segment" data-group-idx="${gi}" `
+                            + `style="left:${x1}%;bottom:${y1}%;width:${len / cW * 100}%;background:${clr};transform:rotate(${ang}deg);${gw}"></div>`;
+                    }
+                });
+
+                // Collision-free labels
+                const LBL_H = 28, LBL_CH = 7.2, GAP = 12;
+                const boxes = rawPts.map(p => {
+                    const movTxt = fmtY(p.value);
+                    const shortN = p.group.split(' ')[0];
+                    const w_px = Math.max(movTxt.length, shortN.length) * LBL_CH + 18;
+                    const dotX_px = p.x * cW / 100;
+                    const dotY_px = cH - p.y * cH / 100;
+                    return { cx_px: dotX_px, y_top_px: ecgPreferredTop(dotY_px, 1, LBL_H, GAP, cH),
+                        w_px, h_px: LBL_H, dotX_px, dotY_px,
+                        color: colors[p.groupIndex % colors.length], groupIndex: p.groupIndex,
+                        movTxt, shortN, fullName: p.group, idx: p.idx };
+                });
+                ecgResolveCollisions(boxes, cW, cH);
+                extra += buildLabelHtml(boxes, cW, cH, isEcg);
+
+                area.insertAdjacentHTML('beforeend', extra);
+                attachChartHover(area, which);
+                applyIsolation(which);
+            });
+        }
+
+        // ── MOVEMENT chart (sequential pulse) ────────────────────────────────
+        function renderMovementChart(which, data, isEcg) {
+            if (rafHandles[which]) { cancelAnimationFrame(rafHandles[which]); rafHandles[which] = null; }
+
+            const area = document.getElementById('area' + which);
+            area.style.height = '350px';
+            const cW = area.offsetWidth || 900, cH = 350;
+            const months = data.months;
+            const groups = data.groups;
+            const movSeries = data.movement_series;
+            const rawSeries = data.series;
+            const baselineMonth = data.baseline_month;
+            const n = months.length, ng = groups.length;
+            const colors = isEcg ? ecgColors : lineColors;
+            const lineColor = isEcg ? '#00ff41' : '#95a5a6';
+            const gclr = isEcg ? 'rgba(0,80,0,.5)' : '#ecf0f1';
+
+            // Flat points
+            const points = [];
+            for (let mi = 0; mi < n; mi++)
+                for (let gi = 0; gi < ng; gi++)
+                    points.push({
+                        value: (movSeries[groups[gi]] || [])[mi] || 0,
+                        rawValue: (rawSeries[groups[gi]] || [])[mi] || 0,
+                        group: groups[gi], groupIndex: gi, monthIndex: mi, idx: mi * ng + gi
+                    });
+            const totalPoints = points.length;
+
+            const maxAbs = Math.max(...points.map(p => Math.abs(p.value)));
+            const nm = getNiceMaxBipolar(maxAbs) || 1;
+
+            const pL = 2, pR = 2, uw = 100 - pL - pR;
+            const idxToX = i => totalPoints > 1 ? pL + (i / (totalPoints - 1)) * uw : 50;
+            const valToY = v => nm > 0 ? ((v + nm) / (2 * nm)) * 100 : 50;
+
+            // Y labels
+            let yh = '';
+            for (let i = 0; i <= 6; i++) { const frac = i / 6; const val = -nm + (2 * nm * frac); yh += `<div class="line-chart-y-label" style="position:absolute;bottom:${frac * 100}%;">${fmtMov(val)}</div>`; }
+            document.getElementById('yl' + which).innerHTML = yh;
+
+            let html = '';
+            for (let i = 0; i <= 6; i++) html += `<div class="line-chart-grid-line" style="bottom:${(i / 6) * 100}%;background:${gclr};"></div>`;
+            html += `<div class="ecg-baseline-line" style="bottom:50%;"><span class="ecg-baseline-label">Baseline: ${formatMonth(baselineMonth)}</span></div>`;
+
+            // Month separators
+            for (let mi = 1; mi < n; mi++) {
+                const si = mi * ng, sepX = (idxToX(si - 1) + idxToX(si)) / 2;
+                html += `<div class="ecg-month-sep" style="left:${sepX}%;"></div>`;
+            }
+
+            // ONE continuous line (class mov-line-seg — no group-idx; whole line dims on isolation)
+            for (let i = 0; i < totalPoints - 1; i++) {
+                const x1 = idxToX(i), y1 = valToY(points[i].value), x2 = idxToX(i + 1), y2 = valToY(points[i + 1].value);
+                const pxDx = (x2 - x1) * cW / 100, pxDy = (y2 - y1) * cH / 100;
+                const pxLen = Math.sqrt(pxDx * pxDx + pxDy * pxDy);
+                const gw = isEcg ? `box-shadow:0 0 6px ${lineColor};` : '';
+                html += `<div class="line-segment mov-line-seg" style="left:${x1}%;bottom:${y1}%;width:${pxLen / cW * 100}%;background:${lineColor};transform:rotate(${Math.atan2(-pxDy, pxDx) * 180 / Math.PI}deg);${gw}"></div>`;
+            }
+
+            // Collision-free labels
+            const LBL_H = 32, LBL_CH = 7.2, GAP = 14;
+            const boxes = points.map((p, i) => {
+                const movTxt = fmtMov(p.value);
+                const shortN = p.group.split(' ')[0];
+                const rawTxt = fmtY(p.rawValue);
+                const w_px = Math.max(movTxt.length, shortN.length) * LBL_CH + 18;
+                const dotX_px = idxToX(i) * cW / 100;
+                const dotY_px = cH - valToY(p.value) * cH / 100;
+                return { cx_px: dotX_px, y_top_px: ecgPreferredTop(dotY_px, p.value, LBL_H, GAP, cH),
+                    w_px, h_px: LBL_H, dotX_px, dotY_px,
+                    color: colors[p.groupIndex % colors.length], groupIndex: p.groupIndex,
+                    movTxt, shortN: `${shortN}: ${rawTxt}`, fullName: p.group, idx: p.idx };
+            });
+            ecgResolveCollisions(boxes, cW, cH);
+            html += buildLabelHtml(boxes, cW, cH, isEcg);
+
+            // Dots (after labels/leaders in DOM)
+            points.forEach((p, i) => {
+                const x = idxToX(i), y = valToY(p.value);
+                const clr = colors[p.groupIndex % colors.length];
+                const gw = isEcg ? `box-shadow:0 0 8px ${clr};` : '';
+                html += `<div class="line-dot" data-idx="${p.idx}" data-group-idx="${p.groupIndex}" `
+                    + `style="left:${x}%;bottom:${y}%;background:${clr};border-color:${isEcg ? '#0a0a0a' : '#fff'};z-index:10;${gw}"></div>`;
+            });
+
+            area.innerHTML = html;
+            attachChartHover(area, which);
+            applyIsolation(which);
+
+            // X labels
+            const xl = document.getElementById('xl' + which);
+            xl.className = 'line-chart-x-labels ecg-mode';
+            let xHtml = '';
+            for (let mi = 0; mi < n; mi++) {
+                const si = mi * ng, cx = (idxToX(si) + idxToX(si + ng - 1)) / 2;
+                const isBase = months[mi] === baselineMonth;
+                xHtml += `<div class="${isBase ? 'ecg-x-label baseline-highlight' : 'ecg-x-label'}" style="left:${cx}%;">${formatMonth(months[mi])}${isBase ? ' (BASELINE)' : ''}</div>`;
+            }
+            xl.innerHTML = xHtml;
+
+            // Summary
+            const last = points.filter(p => p.monthIndex === n - 1).map(p => ({ name: p.group, mov: p.value })).sort((a, b) => b.mov - a.mov);
+            document.getElementById('sum' + which).textContent = last.length > 0
+                ? `Latest month vs baseline — Top gain: ${last[0].name} (${fmtMov(last[0].mov)})`
+                : '';
+
+            renderLegend(which, data);
+        }
+
+        // ── Chart renderers per card ─────────────────────────────────────────
+        function renderCountChart(data) {
+            renderRawChart('Count', data, countEcg);
+        }
+
+        function renderSumChart(data) {
+            if (sumChartMode === 'movement' && data.movement_series) {
+                renderMovementChart('Sum', data, sumEcg);
+            } else {
+                renderRawChart('Sum', data, sumEcg);
+            }
+        }
+
+        // ── ESC key handler ──────────────────────────────────────────────────
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') { clearIsolation('Count'); clearIsolation('Sum'); }
+        });
+
+        // ── Show/Specific toggle ─────────────────────────────────────────────
+        function onShowChange() {
+            const showVal = document.getElementById('trendShowSelect').value;
+            const chipRow = document.getElementById('chipRow');
+            if (showVal === '0') {
+                chipRow.style.display = 'flex';
+                loadUniqueGroups();
+            } else {
+                chipRow.style.display = 'none';
+                selectedSpecificGroups = [];
+                renderChips();
+                onTrendControlChange();
+            }
+        }
+
+        async function loadUniqueGroups() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const trendStart = document.getElementById('trendStartDate').value || startDate;
+            const trendEnd = document.getElementById('trendEndDate').value || endDate;
+            const groupCol = document.getElementById('trendGroupSelect')?.value;
+            if (!startDate || !endDate || !groupCol) return;
+            try {
+                const url = `/api/trend-line-data?start_date=${startDate}&end_date=${endDate}&trend_start_date=${trendStart}&trend_end_date=${trendEnd}&group_column=${encodeURIComponent(groupCol)}&top_n=0`;
+                const resp = await fetch(url);
+                const data = await resp.json();
+                if (data.success && data.available_groups) allGroupValues = data.available_groups;
+            } catch (e) {
+                console.error('Error loading unique groups:', e);
+            }
+        }
+
+        // ── Dual-fetch trend control change ──────────────────────────────────
+        async function onTrendControlChange() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const groupCol = document.getElementById('trendGroupSelect')?.value;
+
+            if (!startDate || !endDate || !groupCol) {
+                document.getElementById('trendSection').style.display = 'none';
+                return;
+            }
+
+            const topN = document.getElementById('trendShowSelect').value;
+            const valueCol = document.getElementById('trendValueSelect')?.value || '';
+            const trendStart = document.getElementById('trendStartDate').value || startDate;
+            const trendEnd = document.getElementById('trendEndDate').value || endDate;
+            const baselineMonth = sumChartMode === 'movement' ? (document.getElementById('baselineMonthSelect').value || '') : '';
+
+            // If Specific mode with no groups selected, show section but no chart
+            if (topN === '0' && selectedSpecificGroups.length === 0) {
+                document.getElementById('trendSection').style.display = 'block';
+                ['Count', 'Sum'].forEach(w => {
+                    document.getElementById('area' + w).innerHTML = '<div class="no-data">Search and add groups above to see trend</div>';
+                    document.getElementById('xl' + w).innerHTML = '';
+                    document.getElementById('yl' + w).innerHTML = '';
+                    document.getElementById('leg' + w).innerHTML = '';
+                    document.getElementById('sum' + w).textContent = '';
+                });
+                lastCountData = null;
+                lastSumData   = null;
+                return;
+            }
+
+            // Build shared params
+            let baseParams = `start_date=${startDate}&end_date=${endDate}&group_column=${encodeURIComponent(groupCol)}&top_n=${topN}`;
+            baseParams += `&trend_start_date=${trendStart}&trend_end_date=${trendEnd}`;
+            if (topN === '0') {
+                selectedSpecificGroups.forEach(g => { baseParams += `&specific_groups=${encodeURIComponent(g)}`; });
+            }
+
+            // COUNT URL (always count, no baseline)
+            const countUrl = `/api/trend-line-data?${baseParams}&agg_method=count`;
+            // SUM URL
+            let sumUrl = `/api/trend-line-data?${baseParams}&agg_method=sum`;
+            if (valueCol) sumUrl += `&value_column=${encodeURIComponent(valueCol)}`;
+            if (baselineMonth) sumUrl += `&baseline_month=${encodeURIComponent(baselineMonth)}`;
+
+            try {
+                const [countResp, sumResp] = await Promise.all([fetch(countUrl), fetch(sumUrl)]);
+                const countData = await countResp.json();
+                const sumData   = await sumResp.json();
+
+                document.getElementById('trendSection').style.display = 'block';
+
+                // COUNT chart
+                if (countData.success && countData.months?.length > 0 && countData.groups?.length > 0) {
+                    lastCountData = countData;
+                    renderCountChart(countData);
+                } else {
+                    lastCountData = null;
+                    document.getElementById('areaCount').innerHTML = '<div class="no-data">No data available</div>';
+                    document.getElementById('xlCount').innerHTML = '';
+                    document.getElementById('ylCount').innerHTML = '';
+                    document.getElementById('legCount').innerHTML = '';
+                    document.getElementById('sumCount').textContent = '';
+                }
+
+                // SUM chart
+                if (sumData.success && sumData.months?.length > 0 && sumData.groups?.length > 0) {
+                    lastSumData = sumData;
+                    // Populate baseline month dropdown
+                    populateBaselineMonths(sumData.months);
+                    renderSumChart(sumData);
+                } else {
+                    lastSumData = null;
+                    document.getElementById('areaSum').innerHTML = '<div class="no-data">No data available</div>';
+                    document.getElementById('xlSum').innerHTML = '';
+                    document.getElementById('ylSum').innerHTML = '';
+                    document.getElementById('legSum').innerHTML = '';
+                    document.getElementById('sumSum').textContent = '';
+                }
+            } catch (e) {
+                console.error('Error loading trend line data:', e);
+            }
+            saveUiState();
+        }
+
+        function downloadTrendLineExcel(which) {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            const groupCol = document.getElementById('trendGroupSelect')?.value;
+            if (!startDate || !endDate || !groupCol) return;
+
+            const topN = document.getElementById('trendShowSelect').value;
+            const trendStart = document.getElementById('trendStartDate').value || startDate;
+            const trendEnd = document.getElementById('trendEndDate').value || endDate;
+
+            let aggMethod, valueCol, baselineMonth;
+            if (which === 'Count') {
+                aggMethod = 'count';
+                valueCol = '';
+                baselineMonth = '';
+            } else {
+                aggMethod = 'sum';
+                valueCol = document.getElementById('trendValueSelect')?.value || '';
+                baselineMonth = sumChartMode === 'movement' ? (document.getElementById('baselineMonthSelect').value || '') : '';
+            }
+
+            let url = `/api/download-trend-line?start_date=${startDate}&end_date=${endDate}&group_column=${encodeURIComponent(groupCol)}&agg_method=${aggMethod}&top_n=${topN}`;
+            url += `&trend_start_date=${trendStart}&trend_end_date=${trendEnd}`;
+            if (baselineMonth) url += `&baseline_month=${encodeURIComponent(baselineMonth)}`;
+            if (valueCol) url += `&value_column=${encodeURIComponent(valueCol)}`;
+            if (topN === '0') {
+                selectedSpecificGroups.forEach(g => { url += `&specific_groups=${encodeURIComponent(g)}`; });
+            }
+            window.location.href = url;
+        }
+
+        // === Chip search functions ===
+        function focusChipSearch() {
+            document.getElementById('chipSearchInput').focus();
+        }
+
+        function onChipSearchInput() {
+            const val = document.getElementById('chipSearchInput').value;
+            renderChipDropdown(val);
+            showChipDropdown();
+        }
+
+        function showChipDropdown() {
+            const dd = document.getElementById('chipDropdown');
+            renderChipDropdown(document.getElementById('chipSearchInput').value);
+            dd.style.display = 'block';
+        }
+
+        function hideChipDropdown() {
+            document.getElementById('chipDropdown').style.display = 'none';
+        }
+
+        function renderChipDropdown(filter) {
+            const dd = document.getElementById('chipDropdown');
+            const lower = (filter || '').toLowerCase();
+            const filtered = allGroupValues.filter(g =>
+                !selectedSpecificGroups.includes(g) && (!lower || g.toLowerCase().includes(lower))
+            ).slice(0, 50);
+
+            if (filtered.length === 0) {
+                dd.innerHTML = '<div class="chip-option" style="color:#999;cursor:default;">No matches</div>';
+                return;
+            }
+
+            dd.innerHTML = filtered.map(g => {
+                const escaped = g.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                return `<div class="chip-option" onclick="addChip('${escaped.replace(/'/g, "\\'")}')">${escaped}</div>`;
+            }).join('');
+        }
+
+        function addChip(name) {
+            // Decode HTML entities back
+            const decoded = name.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&quot;/g, '"');
+            if (!selectedSpecificGroups.includes(decoded)) {
+                selectedSpecificGroups.push(decoded);
+                renderChips();
+                document.getElementById('chipSearchInput').value = '';
+                hideChipDropdown();
+                onTrendControlChange();
+            }
+        }
+
+        function removeChip(name) {
+            selectedSpecificGroups = selectedSpecificGroups.filter(g => g !== name);
+            renderChips();
+            onTrendControlChange();
+        }
+
+        function renderChips() {
+            const container = document.getElementById('chipContainer');
+            container.innerHTML = selectedSpecificGroups.map(g => {
+                const escaped = g.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                return `<span class="chip">${escaped}<span class="chip-remove" onclick="event.stopPropagation();removeChip('${escaped.replace(/'/g, "\\'")}')">&times;</span></span>`;
+            }).join('');
+        }
+
+        // Close chip dropdown on outside click
+        document.addEventListener('click', function(e) {
+            const wrapper = document.querySelector('.chip-input-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                hideChipDropdown();
+            }
+        });
 
         let chartViewMode = 'bar'; // 'bar' or 'list'
 
@@ -1456,73 +2526,7 @@
             document.getElementById('themeToggle').textContent = '☀️';
         }
 
-        // Trend Analysis
-        async function showTrendAnalysis() {
-            const startDate = document.getElementById('startDate').value;
-            const endDate = document.getElementById('endDate').value;
-
-            if (!startDate || !endDate) {
-                showMessage('Please select date range first', 'error');
-                return;
-            }
-
-            showMessage('Loading trend analysis...', 'success');
-
-            try {
-                const response = await fetch(`/api/trend-analysis?start_date=${startDate}&end_date=${endDate}`);
-                const data = await response.json();
-
-                if (data.success) {
-                    displayTrendModal(data);
-                } else {
-                    showMessage(data.error || 'Failed to load trend data', 'error');
-                }
-            } catch (error) {
-                showMessage('Error loading trend analysis', 'error');
-            }
-        }
-
-        function displayTrendModal(data) {
-            const modal = document.createElement('div');
-            modal.className = 'modal-overlay active';
-            modal.id = 'trendModal';
-
-            const maxCount = Math.max(...data.monthly_counts.map(m => m.count));
-
-            modal.innerHTML = `
-                <div class="modal" style="max-width: 800px;">
-                    <div class="modal-header">
-                        <h2>Monthly Trend Analysis</h2>
-                        <button class="modal-close" onclick="closeTrendModal()">&times;</button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="trend-chart">
-                            <div class="trend-bar">
-                                ${data.monthly_counts.map(month => `
-                                    <div class="trend-item">
-                                        <div class="trend-value">${month.count.toLocaleString()}</div>
-                                        <div class="trend-fill" style="height: ${(month.count / maxCount) * 100}%"></div>
-                                        <div class="trend-label">${formatMonth(month.month)}</div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                        <div style="margin-top: 20px; text-align: center; color: #7f8c8d;">
-                            Total: ${data.total.toLocaleString()} records | Average: ${Math.round(data.average).toLocaleString()} per month
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-secondary" onclick="closeTrendModal()">Close</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-
-        function closeTrendModal() {
-            const modal = document.getElementById('trendModal');
-            if (modal) modal.remove();
-        }
+        // (Trend modal removed — inline line chart replaces it)
 
         // Comparison View
         let lastComparisonParams = null;
