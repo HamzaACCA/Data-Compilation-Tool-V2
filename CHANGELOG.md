@@ -1,5 +1,34 @@
 # Changelog
 
+## V3.6 — 25-Feb-2026 (RAG Audit Bot)
+
+**New Features:**
+- **Audit Bot Chat Panel** — slide-out chat panel on dashboard with natural language command parser for 39 dashboard actions (FREE, local regex/keyword matching)
+- **9 Audit Checks Engine** (`utils/audit_checks.py`) — duplicates, outliers, concentration, trend anomalies, missing data, round numbers, weekend activity, Benford's Law, split transactions — all run on 100% of data locally via pandas (zero token cost)
+- **GPT-5.2 AI Integration** (`utils/ai_chat.py`) — unmatched commands route to OpenAI GPT-5.2 for interpretation, risk analysis, and dashboard action proposals (PAID per query, ~$0.02-0.06/query)
+- **Risk Report Generator** — AI-generated structured risk assessment report (HIGH/MEDIUM/LOW findings with evidence and recommendations), downloadable as PDF or text file
+- **Smart Hybrid Commands** — multi-step command splitting ("filter jan 2025 to jun 2025, then risk scan"), smart column name matching (display names from settings + partial match), context-aware suggestions
+- **SQLite Persistence** (`utils/db.py`) — chat history, risk scan results, and token usage stored in `Data/audit_bot.db` per project
+- **Confirm Before Execute** — bot proposes dashboard actions with [Apply]/[Cancel] buttons; AI-proposed actions go through same confirm flow
+
+**New Files:**
+- `utils/audit_checks.py` — 9 pandas-based audit check functions + `run_all_checks()` orchestrator
+- `utils/ai_chat.py` — OpenAI client, context builder, system prompt, chat + report generation
+- `utils/db.py` — SQLite connection helper with thread-local connections, CRUD for messages/scans/findings
+- `RAG_AUDIT_BOT_PLAN.md` — full implementation plan document
+
+**New API Endpoints:**
+- `POST /api/chat` — save local message or route to GPT-5.2 with data context
+- `GET /api/chat/history` — load chat history + token count from SQLite
+- `DELETE /api/chat/history` — clear chat history
+- `GET /api/risk-scan` — run all 9 audit checks, store results in SQLite
+- `POST /api/generate-report` — generate AI risk assessment report
+
+**Dependencies:**
+- Added `openai>=1.0.0` to `requirements.txt` (optional — AI features disabled without API key)
+
+---
+
 ## V3.5 — 24-Feb-2026 (Dual Trend Charts + Performance Optimization)
 
 **New Features:**

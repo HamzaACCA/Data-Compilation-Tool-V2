@@ -848,6 +848,189 @@
                 min-width: auto;
             }
         }
+        /* ── Chat Panel ─────────────────────────────────────────────────── */
+        .chat-toggle-btn {
+            background: #1abc9c; color: white; border: none; width: 36px; height: 28px;
+            border-radius: 4px; cursor: pointer; font-size: 16px; display: flex;
+            align-items: center; justify-content: center; transition: background 0.2s;
+            -webkit-app-region: no-drag;
+        }
+        .chat-toggle-btn:hover { background: #16a085; }
+        .chat-toggle-btn.has-unread { animation: chatPulse 1.5s infinite; }
+        @keyframes chatPulse { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 8px rgba(26,188,156,0.6)} }
+
+        .chat-panel {
+            position: fixed; top: 0; right: -420px; width: 410px; height: 100vh;
+            background: #fff; box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+            z-index: 10000; display: flex; flex-direction: column;
+            transition: right 0.3s ease;
+        }
+        .chat-panel.open { right: 0; }
+        body.dark-mode .chat-panel { background: #1a1a2e; box-shadow: -4px 0 20px rgba(0,0,0,0.4); }
+
+        .chat-header {
+            background: #2c3e50; color: white; padding: 12px 16px;
+            display: flex; justify-content: space-between; align-items: center;
+            flex-shrink: 0;
+        }
+        .chat-header h3 { margin: 0; font-size: 1em; font-weight: 600; }
+        .chat-header-actions { display: flex; gap: 8px; align-items: center; }
+        .chat-header-btn {
+            background: rgba(255,255,255,0.15); border: none; color: white;
+            padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8em;
+            transition: background 0.2s;
+        }
+        .chat-header-btn:hover { background: rgba(255,255,255,0.25); }
+        .chat-close-btn { font-size: 1.2em; padding: 4px 8px; }
+        .chat-token-badge {
+            background: rgba(255,255,255,0.12); padding: 3px 8px; border-radius: 10px;
+            font-size: 0.72em; opacity: 0.8;
+        }
+
+        .chat-messages {
+            flex: 1; overflow-y: auto; padding: 14px; display: flex;
+            flex-direction: column; gap: 10px;
+        }
+
+        .chat-msg {
+            max-width: 88%; padding: 10px 14px; border-radius: 12px;
+            font-size: 0.88em; line-height: 1.45; word-wrap: break-word;
+            position: relative;
+        }
+        .chat-msg.user {
+            align-self: flex-end; background: #3498db; color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-msg.assistant {
+            align-self: flex-start; background: #f0f2f5; color: #2c3e50;
+            border-bottom-left-radius: 4px;
+        }
+        body.dark-mode .chat-msg.assistant { background: #16213e; color: #e0e0e0; }
+        .chat-msg .msg-time {
+            font-size: 0.68em; opacity: 0.6; margin-top: 4px; display: block;
+        }
+        .chat-msg .msg-source {
+            font-size: 0.62em; opacity: 0.5; font-style: italic;
+        }
+
+        /* Risk badges */
+        .risk-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 10px;
+            font-size: 0.75em; font-weight: 600; margin: 2px 2px;
+        }
+        .risk-badge.high { background: #fde8e8; color: #e74c3c; }
+        .risk-badge.medium { background: #fef9e7; color: #f39c12; }
+        .risk-badge.low { background: #eafaf1; color: #27ae60; }
+        body.dark-mode .risk-badge.high { background: #4a1a1a; }
+        body.dark-mode .risk-badge.medium { background: #4a3a0a; }
+        body.dark-mode .risk-badge.low { background: #0a3a1a; }
+
+        /* Action confirm card */
+        .chat-action-card {
+            background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px;
+            padding: 10px 14px; margin-top: 6px;
+        }
+        body.dark-mode .chat-action-card { background: #0f3460; border-color: #1a4a8a; }
+        .chat-action-card .action-list {
+            font-size: 0.82em; margin: 6px 0;
+        }
+        .chat-action-card .action-item {
+            padding: 3px 0; color: #555;
+        }
+        body.dark-mode .chat-action-card .action-item { color: #bbb; }
+        .chat-action-btns {
+            display: flex; gap: 8px; margin-top: 8px;
+        }
+        .chat-action-btns button {
+            padding: 5px 16px; border: none; border-radius: 4px; cursor: pointer;
+            font-size: 0.82em; font-weight: 500; transition: background 0.2s;
+        }
+        .chat-apply-btn { background: #27ae60; color: white; }
+        .chat-apply-btn:hover { background: #219a52; }
+        .chat-cancel-btn { background: #e0e0e0; color: #555; }
+        .chat-cancel-btn:hover { background: #ccc; }
+        body.dark-mode .chat-cancel-btn { background: #333; color: #ccc; }
+
+        /* Scan results */
+        .scan-summary {
+            display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap;
+        }
+        .scan-stat {
+            padding: 4px 10px; border-radius: 6px; font-size: 0.78em; font-weight: 600;
+        }
+        .scan-stat.high-bg { background: #fde8e8; color: #c0392b; }
+        .scan-stat.medium-bg { background: #fef9e7; color: #e67e22; }
+        .scan-stat.low-bg { background: #eafaf1; color: #229954; }
+        body.dark-mode .scan-stat.high-bg { background: #4a1a1a; }
+        body.dark-mode .scan-stat.medium-bg { background: #4a3a0a; }
+        body.dark-mode .scan-stat.low-bg { background: #0a3a1a; }
+
+        .finding-item {
+            padding: 8px 12px; margin: 4px 0; border-radius: 6px;
+            font-size: 0.82em; border-left: 3px solid #ccc;
+        }
+        .finding-item.high { border-left-color: #e74c3c; background: #fdf2f2; }
+        .finding-item.medium { border-left-color: #f39c12; background: #fefbf0; }
+        .finding-item.low { border-left-color: #27ae60; background: #f0faf4; }
+        body.dark-mode .finding-item.high { background: #2a1010; }
+        body.dark-mode .finding-item.medium { background: #2a2010; }
+        body.dark-mode .finding-item.low { background: #102a10; }
+        .finding-title { font-weight: 600; margin-bottom: 2px; }
+        .finding-detail { opacity: 0.8; font-size: 0.92em; }
+
+        /* Typing indicator */
+        .chat-typing { display: flex; gap: 4px; padding: 10px 14px; align-self: flex-start; }
+        .chat-typing span {
+            width: 8px; height: 8px; border-radius: 50%; background: #bbb;
+            animation: typingBounce 1.2s infinite;
+        }
+        .chat-typing span:nth-child(2) { animation-delay: 0.2s; }
+        .chat-typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typingBounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+
+        .chat-input-area {
+            padding: 10px 14px; border-top: 1px solid #e0e0e0;
+            display: flex; gap: 8px; flex-shrink: 0; align-items: flex-end;
+        }
+        body.dark-mode .chat-input-area { border-top-color: #0f3460; }
+        .chat-input-area textarea {
+            flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px;
+            font-size: 0.88em; resize: none; font-family: inherit;
+            max-height: 80px; min-height: 38px; line-height: 1.4;
+            background: #fff; color: #2c3e50;
+        }
+        body.dark-mode .chat-input-area textarea { background: #16213e; color: #e0e0e0; border-color: #0f3460; }
+        .chat-input-area textarea:focus { outline: none; border-color: #3498db; }
+        .chat-send-btn {
+            background: #3498db; color: white; border: none; border-radius: 8px;
+            width: 38px; height: 38px; cursor: pointer; font-size: 1.1em;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s; flex-shrink: 0;
+        }
+        .chat-send-btn:hover { background: #2980b9; }
+        .chat-send-btn:disabled { background: #bdc3c7; cursor: not-allowed; }
+
+        .chat-quick-actions {
+            padding: 6px 14px; border-top: 1px solid #e0e0e0; display: flex;
+            gap: 6px; flex-shrink: 0; flex-wrap: wrap;
+        }
+        body.dark-mode .chat-quick-actions { border-top-color: #0f3460; }
+        .chat-quick-btn {
+            background: #ecf0f1; border: none; padding: 4px 10px; border-radius: 12px;
+            font-size: 0.75em; cursor: pointer; color: #555; transition: background 0.2s;
+        }
+        .chat-quick-btn:hover { background: #dfe6e9; }
+        body.dark-mode .chat-quick-btn { background: #16213e; color: #aaa; }
+        body.dark-mode .chat-quick-btn:hover { background: #1a3a5e; }
+
+        /* Chat overlay for mobile */
+        .chat-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.3); z-index: 9999;
+            display: none; transition: opacity 0.3s;
+        }
+        .chat-overlay.visible { display: block; }
+
     </style>
 </head>
 <body>
@@ -858,6 +1041,7 @@
             <span class="project-badge" id="projectBadge">Loading...</span>
         </div>
         <div class="window-controls">
+            <button class="chat-toggle-btn" onclick="toggleChatPanel()" title="Audit Bot" id="chatToggleBtn">&#128172;</button>
             <button class="theme-toggle" onclick="toggleDarkMode()" title="Toggle Dark Mode" id="themeToggle">🌙</button>
             <button class="window-btn btn-minimize" onclick="minimizeWindow()" title="Minimize">&#8211;</button>
             <button class="window-btn btn-maximize" onclick="maximizeWindow()" title="Maximize" id="maximizeBtn">&#9633;</button>
@@ -3186,7 +3370,993 @@
                 printWindow.print();
             }, 500);
         }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // ── AUDIT BOT: Chat Panel + Local Command Parser + SQLite Persistence
+        // ══════════════════════════════════════════════════════════════════════
+
+        let chatPanelOpen = false;
+        let chatHistoryLoaded = false;
+
+        function toggleChatPanel() {
+            chatPanelOpen = !chatPanelOpen;
+            document.getElementById('chatPanel').classList.toggle('open', chatPanelOpen);
+            document.getElementById('chatOverlay').classList.toggle('visible', chatPanelOpen);
+            if (chatPanelOpen && !chatHistoryLoaded) {
+                loadChatHistory();
+                chatHistoryLoaded = true;
+            }
+            if (chatPanelOpen) {
+                setTimeout(() => document.getElementById('chatInput').focus(), 300);
+            }
+        }
+
+        function chatQuickAction(text) {
+            document.getElementById('chatInput').value = text;
+            sendChatMessage();
+        }
+
+        // ── Save / Load chat history via SQLite API ──────────────────────────
+
+        async function saveChatToDB(role, content, actions, risks, source) {
+            try {
+                await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role, message: content, actions, risks, source })
+                });
+            } catch (e) { console.error('Chat save error:', e); }
+        }
+
+        async function loadChatHistory() {
+            try {
+                const resp = await fetch('/api/chat/history');
+                const data = await resp.json();
+                if (!data.success) return;
+                const container = document.getElementById('chatMessages');
+                // Keep the welcome message (first child)
+                const welcome = container.firstElementChild;
+                container.innerHTML = '';
+                if (welcome) container.appendChild(welcome);
+                data.messages.forEach(msg => {
+                    appendChatBubble(msg.role, msg.content, msg.source, msg.created_at, false);
+                    if (msg.risks && msg.risks.length) {
+                        appendRiskFindings(msg.risks);
+                    }
+                });
+                if (data.total_tokens !== undefined) {
+                    document.getElementById('chatTokenBadge').textContent = data.total_tokens.toLocaleString() + ' tokens';
+                }
+                scrollChatBottom();
+            } catch (e) { console.error('Chat history load error:', e); }
+        }
+
+        async function clearChatHistory() {
+            if (!confirm('Clear all chat history for this project?')) return;
+            try {
+                await fetch('/api/chat/history', { method: 'DELETE' });
+                const container = document.getElementById('chatMessages');
+                const welcome = container.querySelector('.chat-msg.assistant');
+                container.innerHTML = '';
+                if (welcome) container.appendChild(welcome.cloneNode(true));
+                document.getElementById('chatTokenBadge').textContent = '0 tokens';
+                chatHistoryLoaded = false;
+            } catch (e) { console.error('Chat clear error:', e); }
+        }
+
+        function appendChatBubble(role, content, source, timestamp, save) {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = `chat-msg ${role}`;
+            const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+            let srcLabel = '';
+            if (source === 'ai') srcLabel = ' <span class="msg-source">AI</span>';
+            div.innerHTML = `<div>${escapeHtml(content)}</div><span class="msg-time">${timeStr}${srcLabel}</span>`;
+            container.appendChild(div);
+            scrollChatBottom();
+            if (save !== false) {
+                saveChatToDB(role, content, null, null, source || 'local');
+            }
+        }
+
+        function appendActionCard(actions, description, onApply) {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'chat-msg assistant';
+            let listHtml = actions.map(a => `<div class="action-item">&bull; ${escapeHtml(a.label || a.type)}</div>`).join('');
+            div.innerHTML = `
+                <div>${escapeHtml(description)}</div>
+                <div class="chat-action-card">
+                    <div class="action-list">${listHtml}</div>
+                    <div class="chat-action-btns">
+                        <button class="chat-apply-btn">Apply</button>
+                        <button class="chat-cancel-btn">Cancel</button>
+                    </div>
+                </div>
+            `;
+            const btnsDiv = div.querySelector('.chat-action-btns');
+            btnsDiv.querySelector('.chat-apply-btn').addEventListener('click', function() {
+                btnsDiv.innerHTML = '<span style="color:#27ae60;font-weight:600;font-size:0.85em;">Applied</span>';
+                onApply();
+            });
+            btnsDiv.querySelector('.chat-cancel-btn').addEventListener('click', function() {
+                btnsDiv.innerHTML = '<span style="opacity:0.6;font-size:0.85em;">Cancelled</span>';
+            });
+            container.appendChild(div);
+            scrollChatBottom();
+        }
+
+        function appendRiskFindings(findings) {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'chat-msg assistant';
+            let html = '';
+            if (findings.summary) {
+                html += `<div class="scan-summary">
+                    <span class="scan-stat high-bg">${findings.summary.high} High</span>
+                    <span class="scan-stat medium-bg">${findings.summary.medium} Medium</span>
+                    <span class="scan-stat low-bg">${findings.summary.low} Low</span>
+                </div>`;
+                html += `<div style="font-size:0.82em;opacity:0.7;margin-bottom:8px;">${findings.summary.total_rows.toLocaleString()} rows scanned, ${findings.summary.total_findings} findings</div>`;
+            }
+            const items = findings.findings || findings;
+            if (Array.isArray(items)) {
+                items.forEach(f => {
+                    html += `<div class="finding-item ${f.level}">
+                        <div class="finding-title"><span class="risk-badge ${f.level}">${f.level.toUpperCase()}</span> ${escapeHtml(f.title)}</div>
+                        <div class="finding-detail">${escapeHtml(f.detail || '')}</div>
+                    </div>`;
+                });
+            }
+            div.innerHTML = html;
+            container.appendChild(div);
+            scrollChatBottom();
+        }
+
+        function scrollChatBottom() {
+            const el = document.getElementById('chatMessages');
+            setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\n/g,'<br>');
+        }
+
+        // ── Send message flow ────────────────────────────────────────────────
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+            input.style.height = 'auto';
+
+            // Show user bubble
+            appendChatBubble('user', text, 'local');
+
+            // ── Phase 6: Smart Hybrid — split multi-step commands ────────────
+            const parts = splitHybridCommand(text);
+            let hasUnmatched = false;
+            let unmatchedParts = [];
+
+            for (const part of parts) {
+                const parsed = parseCommand(part);
+
+                if (parsed.matched) {
+                    if (parsed.actions && parsed.actions.length > 0) {
+                        appendActionCard(parsed.actions, parsed.description, () => {
+                            executeActions(parsed.actions);
+                        });
+                        saveChatToDB('assistant', parsed.description, parsed.actions, null, 'local');
+                    } else if (parsed.immediate) {
+                        executeActions(parsed.immediateActions || []);
+                        appendChatBubble('assistant', parsed.description, 'local');
+                    } else {
+                        appendChatBubble('assistant', parsed.description, 'local');
+                    }
+                } else if (parsed.isRiskScan) {
+                    appendChatBubble('assistant', 'Running risk scan on all data...', 'local');
+                    await runRiskScan();
+                } else if (parsed.isReport) {
+                    await generateReport();
+                } else {
+                    hasUnmatched = true;
+                    unmatchedParts.push(part);
+                }
+            }
+
+            // ── Phase 4: Route unmatched parts to AI ─────────────────────────
+            if (hasUnmatched) {
+                const query = unmatchedParts.join('. ');
+                await sendToAI(query);
+            }
+        }
+
+        // ── Phase 6: Split multi-step commands ──────────────────────────────
+
+        function splitHybridCommand(text) {
+            // Split on ", and ", ", then ", " and then ", semicolons
+            // But keep "filter X to Y" intact (don't split on the "to")
+            const parts = text.split(/(?:,\s*and\s+|,\s*then\s+|\s+and\s+then\s+|;\s*)/i);
+            return parts.map(p => p.trim()).filter(Boolean);
+        }
+
+        // ── Phase 4: AI Chat ────────────────────────────────────────────────
+
+        function showTypingIndicator() {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'chat-typing';
+            div.id = 'chatTyping';
+            div.innerHTML = '<span></span><span></span><span></span>';
+            container.appendChild(div);
+            scrollChatBottom();
+        }
+
+        function hideTypingIndicator() {
+            const el = document.getElementById('chatTyping');
+            if (el) el.remove();
+        }
+
+        function getDashboardState() {
+            return {
+                startDate: document.getElementById('startDate')?.value || '',
+                endDate: document.getElementById('endDate')?.value || '',
+                trendGroup: document.getElementById('trendGroupSelect')?.value || '',
+                trendValue: document.getElementById('trendValueSelect')?.value || '',
+                trendShow: document.getElementById('trendShowSelect')?.value || '',
+                sumChartMode: sumChartMode,
+                countEcg: countEcg,
+                sumEcg: sumEcg
+            };
+        }
+
+        async function sendToAI(text) {
+            showTypingIndicator();
+            const sendBtn = document.getElementById('chatSendBtn');
+            sendBtn.disabled = true;
+
+            try {
+                const resp = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: text,
+                        source: 'ai',
+                        dashboard_state: getDashboardState()
+                    })
+                });
+                const data = await resp.json();
+                hideTypingIndicator();
+
+                if (data.success && data.response) {
+                    const r = data.response;
+                    appendChatBubble('assistant', r.message, 'ai', null, false);
+
+                    // Show risk findings if any
+                    if (r.risks && r.risks.length > 0) {
+                        appendRiskFindings(r.risks);
+                    }
+
+                    // Show action proposals if any
+                    if (r.actions && r.actions.length > 0) {
+                        // Add labels to actions for display
+                        const labeledActions = r.actions.map(a => ({
+                            ...a,
+                            label: a.label || describeAction(a)
+                        }));
+                        appendActionCard(labeledActions, 'Suggested dashboard actions:', () => {
+                            executeActions(labeledActions);
+                        });
+                    }
+
+                    // Update token counter
+                    if (r.tokens_used) {
+                        updateTokenBadge(r.tokens_used);
+                    }
+
+                    // ── Phase 6: Context-aware suggestions ──────────────────
+                    if (r.risks && r.risks.some(r => r.level === 'high')) {
+                        setTimeout(() => {
+                            appendChatBubble('assistant', 'I found high-risk items. Want me to generate a full risk report? Type "report" to proceed.', 'local', null, false);
+                        }, 500);
+                    }
+                } else {
+                    appendChatBubble('assistant', data.error || 'AI request failed.', 'ai');
+                }
+            } catch (e) {
+                hideTypingIndicator();
+                appendChatBubble('assistant', 'AI connection error: ' + e.message, 'local');
+            } finally {
+                sendBtn.disabled = false;
+            }
+        }
+
+        function describeAction(action) {
+            const t = action.type;
+            if (t === 'setDateFilter') return `Set date range: ${action.start} to ${action.end}`;
+            if (t === 'applyFilter') return 'Apply filter';
+            if (t === 'setTrendGroup') return `Group by: ${action.column}`;
+            if (t === 'setTrendValue') return `Value column: ${action.column}`;
+            if (t === 'setTopN') return `Show Top ${action.n}`;
+            if (t === 'setBaseline') return `Baseline: ${action.month}`;
+            if (t === 'toggleEcg') return `ECG toggle: ${action.which}`;
+            if (t === 'setSumChartMode') return `Chart mode: ${action.mode}`;
+            if (t === 'toggleDarkMode') return 'Toggle dark mode';
+            if (t === 'downloadFiltered') return `Download ${action.format || 'data'}`;
+            if (t === 'refreshDashboard') return 'Refresh dashboard';
+            return t;
+        }
+
+        function updateTokenBadge(newTokens) {
+            const badge = document.getElementById('chatTokenBadge');
+            const current = parseInt(badge.textContent.replace(/[^0-9]/g, '')) || 0;
+            badge.textContent = (current + newTokens).toLocaleString() + ' tokens';
+        }
+
+        // ── Phase 5: Risk Report Generator ──────────────────────────────────
+
+        async function generateReport() {
+            appendChatBubble('assistant', 'Generating risk assessment report... This may take a moment.', 'local', null, false);
+            showTypingIndicator();
+            const sendBtn = document.getElementById('chatSendBtn');
+            sendBtn.disabled = true;
+
+            try {
+                const resp = await fetch('/api/generate-report', { method: 'POST' });
+                const data = await resp.json();
+                hideTypingIndicator();
+
+                if (data.success) {
+                    // Display report in chat
+                    appendChatBubble('assistant', data.report, 'ai', null, false);
+
+                    // Add download buttons
+                    const container = document.getElementById('chatMessages');
+                    const btnsDiv = document.createElement('div');
+                    btnsDiv.className = 'chat-msg assistant';
+                    btnsDiv.innerHTML = `
+                        <div style="font-size:0.85em;margin-bottom:6px;">Download report:</div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button class="chat-quick-btn" onclick="downloadReportAsPDF()" style="background:#9b59b6;color:white;">PDF Report</button>
+                            <button class="chat-quick-btn" onclick="downloadReportAsText()" style="background:#27ae60;color:white;">Text File</button>
+                        </div>
+                    `;
+                    container.appendChild(btnsDiv);
+                    scrollChatBottom();
+
+                    // Store last report for download
+                    window._lastReport = data.report;
+
+                    if (data.tokens_used) updateTokenBadge(data.tokens_used);
+                } else {
+                    appendChatBubble('assistant', 'Report generation failed: ' + (data.error || 'Unknown error'), 'local');
+                }
+            } catch (e) {
+                hideTypingIndicator();
+                appendChatBubble('assistant', 'Report error: ' + e.message, 'local');
+            } finally {
+                sendBtn.disabled = false;
+            }
+        }
+
+        function downloadReportAsPDF() {
+            const report = window._lastReport;
+            if (!report) return;
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html><html><head><title>Risk Assessment Report</title>
+                <style>
+                    body { font-family: 'Segoe UI', sans-serif; padding: 40px; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+                    h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+                    pre { white-space: pre-wrap; font-family: 'Segoe UI', sans-serif; font-size: 14px; }
+                    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ecf0f1; color: #7f8c8d; font-size: 0.85em; }
+                    @media print { body { padding: 20px; } }
+                </style></head><body>
+                <pre>${report.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+                <div class="footer">
+                    <p>Generated on ${new Date().toLocaleString()} | Data Analytical and Compilation Tool</p>
+                    <p>Prepared by Hamza Yahya - Internal Audit</p>
+                </div>
+                </body></html>
+            `);
+            printWindow.document.close();
+            printWindow.focus();
+            setTimeout(() => printWindow.print(), 500);
+        }
+
+        function downloadReportAsText() {
+            const report = window._lastReport;
+            if (!report) return;
+            const blob = new Blob([report], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Risk_Report_${currentProject}_${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // ── Risk Scan ────────────────────────────────────────────────────────
+
+        async function runRiskScan() {
+            try {
+                const resp = await fetch('/api/risk-scan');
+                const data = await resp.json();
+                if (data.success) {
+                    appendRiskFindings(data);
+                    saveChatToDB('assistant', `Risk scan complete: ${data.summary.total_findings} findings`, null, data.findings, 'local');
+                } else {
+                    appendChatBubble('assistant', 'Risk scan failed: ' + (data.error || 'Unknown error'), 'local');
+                }
+            } catch (e) {
+                appendChatBubble('assistant', 'Risk scan error: ' + e.message, 'local');
+            }
+        }
+
+        // ── Command Parser (39 Actions) ──────────────────────────────────────
+
+        function parseCommand(text) {
+            const t = text.toLowerCase().trim();
+
+            // Help
+            if (/^help$/.test(t)) {
+                return { matched: true, description: helpText() };
+            }
+
+            // Risk scan
+            if (/^(risk\s*scan|scan\s*(data|all|project)?|audit\s*scan|run\s*scan)$/i.test(t)) {
+                return { matched: false, isRiskScan: true };
+            }
+
+            // Report generation
+            if (/^(generate\s*)?report$|^risk\s*report$|^audit\s*report$|^generate$/i.test(t)) {
+                return { matched: false, isReport: true };
+            }
+
+            // ── Filtering & Date Range ───────────────────────────────────────
+            // "filter jan 2025 to jun 2025" / "filter 2025-01-01 to 2025-06-30"
+            const filterMatch = t.match(/^(?:filter|date|set\s*date|date\s*range)\s+(.+?)\s+to\s+(.+)$/i);
+            if (filterMatch) {
+                const start = parseDateInput(filterMatch[1]);
+                const end = parseDateInput(filterMatch[2]);
+                if (start && end) {
+                    return {
+                        matched: true,
+                        actions: [
+                            { type: 'setDateFilter', start, end, label: `Set date range: ${start} to ${end}` },
+                            { type: 'applyFilter', label: 'Apply filter' }
+                        ],
+                        description: `Filter data from ${start} to ${end}`
+                    };
+                }
+            }
+
+            // "clear filter" / "reset filter"
+            if (/^(clear|reset)\s*(date)?\s*(filter|range)?$/.test(t)) {
+                return {
+                    matched: true, immediate: true,
+                    immediateActions: [{ type: 'clearDateFilter' }],
+                    description: 'Date filter reset to full range.'
+                };
+            }
+
+            // "apply filter"
+            if (/^apply\s*(filter)?$/.test(t)) {
+                return {
+                    matched: true, immediate: true,
+                    immediateActions: [{ type: 'applyFilter' }],
+                    description: 'Filter applied.'
+                };
+            }
+
+            // ── Trend Chart Controls ─────────────────────────────────────────
+            // "group by <column>"
+            const groupMatch = t.match(/^group\s*by\s+(.+)$/i);
+            if (groupMatch) {
+                const col = matchColumnName(groupMatch[1].trim());
+                if (col) {
+                    return {
+                        matched: true,
+                        actions: [{ type: 'setTrendGroup', column: col, label: `Group by: ${col}` }],
+                        description: `Set trend group to "${col}"`
+                    };
+                } else {
+                    return { matched: true, description: `Column "${groupMatch[1]}" not found. Available: ${availableColumns.slice(0,8).join(', ')}...` };
+                }
+            }
+
+            // "value <column>" / "sum by <column>"
+            const valueMatch = t.match(/^(?:value|sum\s*by|value\s*column)\s+(.+)$/i);
+            if (valueMatch) {
+                const col = matchColumnName(valueMatch[1].trim());
+                if (col) {
+                    return {
+                        matched: true,
+                        actions: [{ type: 'setTrendValue', column: col, label: `Value column: ${col}` }],
+                        description: `Set trend value to "${col}"`
+                    };
+                }
+            }
+
+            // "top N"
+            const topMatch = t.match(/^top\s*(\d+)$/i);
+            if (topMatch) {
+                const n = parseInt(topMatch[1]);
+                if ([5,10,15,20,25].includes(n)) {
+                    return {
+                        matched: true, immediate: true,
+                        immediateActions: [{ type: 'setTopN', n }],
+                        description: `Showing Top ${n} groups.`
+                    };
+                }
+            }
+
+            // "baseline <month>" e.g. "baseline jan 2025"
+            const baselineMatch = t.match(/^baseline\s+(.+)$/i);
+            if (baselineMatch) {
+                const monthStr = parseMonthInput(baselineMatch[1].trim());
+                if (monthStr) {
+                    return {
+                        matched: true,
+                        actions: [{ type: 'setBaseline', month: monthStr, label: `Baseline: ${monthStr}` }],
+                        description: `Set baseline month to ${monthStr}`
+                    };
+                }
+            }
+
+            // "show only <group1>, <group2>" / "isolate <groups>"
+            const isolateMatch = t.match(/^(?:show\s*only|isolate|select)\s+(.+)$/i);
+            if (isolateMatch) {
+                const groups = isolateMatch[1].split(/[,;]+/).map(g => g.trim()).filter(Boolean);
+                if (groups.length > 0) {
+                    return {
+                        matched: true,
+                        actions: [{ type: 'setSpecificGroups', groups, label: `Show: ${groups.join(', ')}` }],
+                        description: `Isolating groups: ${groups.join(', ')}`
+                    };
+                }
+            }
+
+            // "show all" / "clear isolation" / "clear selection"
+            if (/^(show\s*all|clear\s*(isolation|selection|groups?)|reset\s*groups?)$/.test(t)) {
+                return {
+                    matched: true, immediate: true,
+                    immediateActions: [
+                        { type: 'clearIsolation', which: 'Count' },
+                        { type: 'clearIsolation', which: 'Sum' }
+                    ],
+                    description: 'Isolation cleared on both charts.'
+                };
+            }
+
+            // "trend start <date>" / "trend end <date>"
+            const trendDateMatch = t.match(/^trend\s*(start|end)\s+(.+)$/i);
+            if (trendDateMatch) {
+                const which = trendDateMatch[1].toLowerCase();
+                const date = parseDateInput(trendDateMatch[2].trim());
+                if (date) {
+                    return {
+                        matched: true, immediate: true,
+                        immediateActions: [{ type: 'setTrendDates', [which]: date }],
+                        description: `Trend ${which} date set to ${date}.`
+                    };
+                }
+            }
+
+            // ── Chart Mode & Theme ───────────────────────────────────────────
+            // "ecg on/off [count/sum]"
+            const ecgMatch = t.match(/^ecg\s*(on|off)?\s*(count|sum|both)?$/i);
+            if (ecgMatch) {
+                const mode = ecgMatch[1]?.toLowerCase();
+                let which = ecgMatch[2]?.toLowerCase();
+                if (!which) which = 'both';
+                const targets = which === 'both' ? ['Count', 'Sum'] : [which.charAt(0).toUpperCase() + which.slice(1)];
+                const actions = [];
+                targets.forEach(w => {
+                    const isOn = w === 'Count' ? countEcg : sumEcg;
+                    if ((mode === 'on' && !isOn) || (mode === 'off' && isOn) || !mode) {
+                        actions.push({ type: 'toggleEcg', which: w, label: `ECG toggle: ${w}` });
+                    }
+                });
+                if (actions.length > 0) {
+                    return { matched: true, immediate: true, immediateActions: actions, description: `ECG theme toggled.` };
+                }
+                return { matched: true, description: 'ECG theme is already in that state.' };
+            }
+
+            // "movement mode" / "raw mode"
+            if (/^(movement|raw)\s*(mode)?$/.test(t)) {
+                const mode = t.startsWith('movement') ? 'movement' : 'raw';
+                return {
+                    matched: true, immediate: true,
+                    immediateActions: [{ type: 'setSumChartMode', mode }],
+                    description: `SUM chart set to ${mode.toUpperCase()} mode.`
+                };
+            }
+
+            // "dark mode"
+            if (/^(dark|light|toggle)\s*mode$/.test(t)) {
+                return {
+                    matched: true, immediate: true,
+                    immediateActions: [{ type: 'toggleDarkMode' }],
+                    description: 'Theme toggled.'
+                };
+            }
+
+            // "bar view" / "list view"
+            const viewMatch = t.match(/^(bar|list)\s*view$/i);
+            if (viewMatch) {
+                return {
+                    matched: true, immediate: true,
+                    immediateActions: [{ type: 'setChartView', mode: viewMatch[1].toLowerCase() }],
+                    description: `Switched to ${viewMatch[1]} view.`
+                };
+            }
+
+            // ── Downloads ────────────────────────────────────────────────────
+            if (/^download\s*(excel|xlsx)$/i.test(t)) {
+                return { matched: true, immediate: true, immediateActions: [{ type: 'downloadFiltered', format: 'xlsx' }], description: 'Downloading filtered data as Excel...' };
+            }
+            if (/^download\s*csv$/i.test(t)) {
+                return { matched: true, immediate: true, immediateActions: [{ type: 'downloadFiltered', format: 'csv' }], description: 'Downloading filtered data as CSV...' };
+            }
+            if (/^download\s*(trend|chart)(\s*(count|sum))?$/i.test(t)) {
+                const m = t.match(/download\s*(?:trend|chart)\s*(count|sum)?/i);
+                const which = m && m[1] ? m[1].charAt(0).toUpperCase() + m[1].slice(1) : 'Count';
+                return { matched: true, immediate: true, immediateActions: [{ type: 'downloadTrend', which }], description: `Downloading ${which} trend data...` };
+            }
+            if (/^download\s*(column\s*stats|column\s*analysis|stats)$/i.test(t)) {
+                return { matched: true, immediate: true, immediateActions: [{ type: 'downloadColumnStats' }], description: 'Downloading column analysis...' };
+            }
+            if (/^download\s*(comparison|compare)$/i.test(t)) {
+                return { matched: true, immediate: true, immediateActions: [{ type: 'downloadComparison' }], description: 'Downloading comparison data...' };
+            }
+            if (/^download\s*(advanced|analysis)$/i.test(t)) {
+                return { matched: true, immediate: true, immediateActions: [{ type: 'downloadAdvanced' }], description: 'Downloading advanced analysis...' };
+            }
+            if (/^(download\s*)?pdf$|^export\s*pdf$/i.test(t)) {
+                return { matched: true, immediate: true, immediateActions: [{ type: 'exportPDF' }], description: 'Exporting PDF report...' };
+            }
+
+            // ── Settings ─────────────────────────────────────────────────────
+            if (/^(open\s*)?settings$/i.test(t)) {
+                return { matched: true, immediate: true, immediateActions: [{ type: 'openSettings' }], description: 'Settings opened.' };
+            }
+
+            // ── Comparison & Advanced Analysis ───────────────────────────────
+            if (/^compare\s*(periods?)?$/i.test(t)) {
+                return { matched: true, immediate: true, immediateActions: [{ type: 'openComparison' }], description: 'Compare Periods modal opened.' };
+            }
+            if (/^(advanced\s*(analysis)?|analyze)$/i.test(t)) {
+                return { matched: true, immediate: true, immediateActions: [{ type: 'openAdvanced' }], description: 'Advanced Analysis modal opened.' };
+            }
+
+            // ── Other ────────────────────────────────────────────────────────
+            if (/^refresh$/i.test(t)) {
+                return { matched: true, immediate: true, immediateActions: [{ type: 'refreshDashboard' }], description: 'Dashboard refreshed.' };
+            }
+
+            // ── Date column ──────────────────────────────────────────────────
+            const dateColMatch = t.match(/^(?:date\s*column|set\s*date\s*column)\s+(.+)$/i);
+            if (dateColMatch) {
+                const col = matchColumnName(dateColMatch[1].trim());
+                if (col) {
+                    return {
+                        matched: true,
+                        actions: [{ type: 'setDateColumn', column: col, label: `Date column: ${col}` }],
+                        description: `Set date column to "${col}"`
+                    };
+                }
+            }
+
+            // No match
+            return { matched: false, isRiskScan: false, isReport: false };
+        }
+
+        function helpText() {
+            return `Available commands:
+- filter <start> to <end> (e.g. "filter jan 2025 to jun 2025")
+- clear filter / reset filter
+- group by <column>
+- value <column> (set SUM value column)
+- top <5|10|15|20|25>
+- baseline <month> (e.g. "baseline jan 2025")
+- show only <group1>, <group2>
+- show all / clear isolation
+- ecg on/off [count|sum|both]
+- movement mode / raw mode
+- dark mode
+- bar view / list view
+- download excel / download csv
+- download trend [count|sum]
+- download column stats
+- download comparison / download advanced
+- pdf / export pdf
+- compare / advanced analysis
+- settings
+- refresh
+- risk scan — run 9 audit checks on all data (FREE)
+- report — generate AI risk assessment report (AI)
+- date column <column>
+- trend start <date> / trend end <date>
+- Or ask any question in plain English (AI)
+- Multi-step: "filter jan 2025 to jun 2025, then risk scan"`;
+        }
+
+        // ── Date Parsing ─────────────────────────────────────────────────────
+
+        function parseDateInput(str) {
+            if (!str) return null;
+            str = str.trim();
+            // Already ISO format
+            if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+
+            const monthNames = { jan:0, january:0, feb:1, february:1, mar:2, march:2, apr:3, april:3, may:4, jun:5, june:5, jul:6, july:6, aug:7, august:7, sep:8, september:8, oct:9, october:9, nov:10, november:10, dec:11, december:11 };
+
+            // "jan 2025" / "january 2025"
+            const m1 = str.match(/^(\w+)\s+(\d{4})$/);
+            if (m1 && monthNames[m1[1].toLowerCase()] !== undefined) {
+                const mon = monthNames[m1[1].toLowerCase()];
+                const year = parseInt(m1[2]);
+                // If used as start date, return 1st; let context decide
+                return `${year}-${String(mon + 1).padStart(2, '0')}-01`;
+            }
+
+            // "15 jan 2025" / "15-jan-2025"
+            const m2 = str.match(/^(\d{1,2})[\s\-]+(\w+)[\s\-]+(\d{4})$/);
+            if (m2 && monthNames[m2[2].toLowerCase()] !== undefined) {
+                const day = parseInt(m2[1]);
+                const mon = monthNames[m2[2].toLowerCase()];
+                const year = parseInt(m2[3]);
+                return `${year}-${String(mon + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            }
+
+            // "Q1 2025" -> jan-mar, "Q2 2025" -> apr-jun, etc.
+            const qm = str.match(/^q([1-4])\s*(\d{4})$/i);
+            if (qm) {
+                const q = parseInt(qm[1]);
+                const year = parseInt(qm[2]);
+                const startMon = (q - 1) * 3 + 1;
+                return `${year}-${String(startMon).padStart(2, '0')}-01`;
+            }
+
+            // "H1 2025" -> jan, "H2 2025" -> jul
+            const hm = str.match(/^h([12])\s*(\d{4})$/i);
+            if (hm) {
+                const h = parseInt(hm[1]);
+                const year = parseInt(hm[2]);
+                const startMon = h === 1 ? 1 : 7;
+                return `${year}-${String(startMon).padStart(2, '0')}-01`;
+            }
+
+            // Try native Date parsing as fallback
+            const d = new Date(str);
+            if (!isNaN(d.getTime())) {
+                return d.toISOString().split('T')[0];
+            }
+
+            return null;
+        }
+
+        function parseMonthInput(str) {
+            // Returns "YYYY-MM" format
+            const d = parseDateInput(str);
+            if (d) return d.substring(0, 7);
+            return null;
+        }
+
+        // ── Column Name Matching ─────────────────────────────────────────────
+
+        function matchColumnName(input) {
+            if (!input) return null;
+            const lower = input.toLowerCase();
+
+            // Exact match
+            for (const col of availableColumns) {
+                if (col.toLowerCase() === lower) return col;
+            }
+
+            // Match by display name from settings
+            if (currentSettings && currentSettings.top_columns) {
+                for (const tc of currentSettings.top_columns) {
+                    if (tc.display_name && tc.display_name.toLowerCase() === lower) {
+                        return tc.column;
+                    }
+                }
+            }
+
+            // Partial match (contains)
+            for (const col of availableColumns) {
+                if (col.toLowerCase().includes(lower)) return col;
+            }
+
+            // Partial match on display names
+            if (currentSettings && currentSettings.top_columns) {
+                for (const tc of currentSettings.top_columns) {
+                    if (tc.display_name && tc.display_name.toLowerCase().includes(lower)) {
+                        return tc.column;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        // ── Action Executor ──────────────────────────────────────────────────
+
+        function executeActions(actions) {
+            actions.forEach(action => {
+                switch (action.type) {
+                    case 'setDateFilter':
+                        if (action.start) document.getElementById('startDate').value = action.start;
+                        if (action.end) {
+                            // If end is first-of-month from parseDateInput, adjust to end-of-month
+                            let endVal = action.end;
+                            if (endVal.endsWith('-01')) {
+                                const d = new Date(endVal);
+                                d.setMonth(d.getMonth() + 1);
+                                d.setDate(0); // last day of prev month
+                                endVal = d.toISOString().split('T')[0];
+                            }
+                            document.getElementById('endDate').value = endVal;
+                        }
+                        break;
+                    case 'applyFilter':
+                        loadDashboard();
+                        break;
+                    case 'clearDateFilter':
+                        loadDateRange().then(() => loadDashboard());
+                        break;
+                    case 'setDateColumn': {
+                        const sel = document.getElementById('dateColumnSelect');
+                        if (action.column) {
+                            sel.value = action.column;
+                            saveDateColumn();
+                        }
+                        break;
+                    }
+                    case 'setTrendGroup': {
+                        const sel = document.getElementById('trendGroupSelect');
+                        if (action.column) {
+                            sel.value = action.column;
+                            onTrendControlChange();
+                        }
+                        break;
+                    }
+                    case 'setTrendValue': {
+                        const sel = document.getElementById('trendValueSelect');
+                        if (action.column) {
+                            sel.value = action.column;
+                            onTrendControlChange();
+                        }
+                        break;
+                    }
+                    case 'setTopN': {
+                        const sel = document.getElementById('trendShowSelect');
+                        sel.value = String(action.n);
+                        onShowChange();
+                        break;
+                    }
+                    case 'setSpecificGroups': {
+                        const sel = document.getElementById('trendShowSelect');
+                        sel.value = '0';
+                        onShowChange();
+                        selectedSpecificGroups = [];
+                        (action.groups || []).forEach(g => addChip(g));
+                        onTrendControlChange();
+                        break;
+                    }
+                    case 'setBaseline': {
+                        if (sumChartMode !== 'movement') setSumChartMode('movement');
+                        const sel = document.getElementById('baselineMonthSelect');
+                        if (action.month) {
+                            sel.value = action.month;
+                            onTrendControlChange();
+                        }
+                        break;
+                    }
+                    case 'setTrendDates': {
+                        if (action.start) document.getElementById('trendStartDate').value = action.start;
+                        if (action.end) document.getElementById('trendEndDate').value = action.end;
+                        onTrendDateChange();
+                        break;
+                    }
+                    case 'clearTrendDates':
+                        document.getElementById('trendStartDate').value = '';
+                        document.getElementById('trendEndDate').value = '';
+                        onTrendDateChange();
+                        break;
+                    case 'toggleEcg':
+                        toggleEcg(action.which || 'Count');
+                        break;
+                    case 'setSumChartMode':
+                        setSumChartMode(action.mode || 'raw');
+                        break;
+                    case 'toggleDarkMode':
+                        toggleDarkMode();
+                        break;
+                    case 'setChartView':
+                        toggleChartView(action.mode || 'bar');
+                        break;
+                    case 'clearIsolation':
+                        clearIsolation(action.which || 'Count');
+                        break;
+                    case 'openComparison':
+                        showComparison();
+                        break;
+                    case 'openAdvanced':
+                        showAdvancedAnalysis();
+                        break;
+                    case 'openSettings':
+                        openSettings();
+                        break;
+                    case 'downloadFiltered':
+                        downloadFiltered(action.format);
+                        break;
+                    case 'downloadTrend':
+                        downloadTrendLineExcel(action.which || 'Count');
+                        break;
+                    case 'downloadColumnStats':
+                        downloadColumnStats();
+                        break;
+                    case 'downloadComparison':
+                        downloadComparison();
+                        break;
+                    case 'downloadAdvanced':
+                        downloadAdvancedAnalysis();
+                        break;
+                    case 'exportPDF':
+                        exportPDF();
+                        break;
+                    case 'refreshDashboard':
+                        loadDashboard();
+                        break;
+                }
+            });
+        }
     </script>
+
+    <!-- Chat Panel Overlay -->
+    <div class="chat-overlay" id="chatOverlay" onclick="toggleChatPanel()"></div>
+
+    <!-- Audit Bot Chat Panel -->
+    <div class="chat-panel" id="chatPanel">
+        <div class="chat-header">
+            <h3>Audit Bot</h3>
+            <div class="chat-header-actions">
+                <span class="chat-token-badge" id="chatTokenBadge" title="Total AI tokens used">0 tokens</span>
+                <button class="chat-header-btn" onclick="clearChatHistory()" title="Clear History">Clear</button>
+                <button class="chat-header-btn chat-close-btn" onclick="toggleChatPanel()">&times;</button>
+            </div>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="chat-msg assistant">
+                <div>Welcome! I can control the dashboard, run audit checks, and answer questions via AI. Try:</div>
+                <div style="font-size:0.85em; margin-top:6px; opacity:0.85;">
+                    &bull; <b>filter jan 2025 to jun 2025</b><br>
+                    &bull; <b>group by</b> &lt;column&gt;<br>
+                    &bull; <b>top 15</b><br>
+                    &bull; <b>risk scan</b> — run 9 audit checks<br>
+                    &bull; <b>report</b> — AI risk assessment<br>
+                    &bull; Or ask any question in plain English
+                </div>
+            </div>
+        </div>
+        <div class="chat-quick-actions">
+            <button class="chat-quick-btn" onclick="chatQuickAction('risk scan')">Risk Scan</button>
+            <button class="chat-quick-btn" onclick="chatQuickAction('report')">Report</button>
+            <button class="chat-quick-btn" onclick="chatQuickAction('refresh')">Refresh</button>
+            <button class="chat-quick-btn" onclick="chatQuickAction('download excel')">Download</button>
+            <button class="chat-quick-btn" onclick="chatQuickAction('dark mode')">Dark Mode</button>
+        </div>
+        <div class="chat-input-area">
+            <textarea id="chatInput" placeholder="Type a command or question..." rows="1"
+                      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage();}"></textarea>
+            <button class="chat-send-btn" onclick="sendChatMessage()" id="chatSendBtn" title="Send">&#9654;</button>
+        </div>
+    </div>
 
     <!-- Branding -->
     <div class="branding">

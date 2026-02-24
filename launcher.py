@@ -18,6 +18,9 @@ import xlsxwriter
 import zipfile
 from xml.sax.saxutils import escape as _xml_escape
 from utils.logging import setup_logging, get_logger
+from utils.audit_checks import run_all_checks
+from utils import db as audit_db
+from utils import ai_chat
 
 # Fast Excel reader (Rust-based, ~9x faster than openpyxl)
 try:
@@ -66,6 +69,8 @@ else:
 os.makedirs(APP_DIR, exist_ok=True)
 setup_logging(APP_DIR)
 log = get_logger(__name__)
+audit_db.init_db(APP_DIR)
+ai_chat.init_client()
 
 PROJECTS_DIR = os.path.join(APP_DIR, 'Projects')
 os.makedirs(PROJECTS_DIR, exist_ok=True)
@@ -2475,6 +2480,169 @@ class Api:
                 return {'success': True, 'message': f'Excel saved! ({len(export_df)} records)'}
         except Exception as e:
             return {'success': False, 'error': str(e)}
+
+
+# ── Audit Bot Endpoints ──────────────────────────────────────────────────────
+
+@app.route('/api/risk-scan')
+def risk_scan():
+    """Run all 9 audit checks on 100% of data, store results in SQLite."""
+    config = load_config()
+    project = config.get('current_project')
+    if not project:
+        return jsonify({'success': False, 'error': 'No active project'})
+    try:
+        df = get_cached_dataframe(project)
+        if df is None or len(df) == 0:
+            return jsonify({'success': False, 'error': 'No data in project'})
+        settings = load_project_settings(project)
+        results = run_all_checks(df, settings)
+        scan_id = audit_db.save_scan(project, results)
+        results['scan_id'] = scan_id
+        results['success'] = True
+        return jsonify(results)
+    except Exception as e:
+        log.error("risk scan failed: %s", e)
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/chat', methods=['POST'])
+def chat_message():
+    """Receive chat message — save-only (source=local) or route to AI (source=ai)."""
+    config = load_config()
+    project = config.get('current_project')
+    if not project:
+        return jsonify({'success': False, 'error': 'No active project'})
+    try:
+        data = request.get_json()
+        message = data.get('message', '').strip()
+        source = data.get('source', 'local')
+
+        # Save-only mode (local commands)
+        if source == 'local':
+            role = data.get('role', 'user')
+            actions = data.get('actions')
+            risks = data.get('risks')
+            tokens = data.get('tokens_used', 0)
+            msg_id = audit_db.save_message(project, role, message, actions, risks, source, tokens)
+            return jsonify({'success': True, 'id': msg_id})
+
+        # AI mode — route to GPT-5.2 Pro
+        if not ai_chat.is_available():
+            return jsonify({'success': True, 'response': {
+                'message': 'AI is not configured. Add OPENAI_API_KEY to your .env file and restart.',
+                'actions': [], 'risks': [], 'tokens_used': 0, 'source': 'ai'
+            }})
+
+        # Save user message
+        audit_db.save_message(project, 'user', message, source='ai')
+
+        # Build context
+        df = get_cached_dataframe(project)
+        settings = load_project_settings(project)
+        dashboard_state = data.get('dashboard_state', {})
+
+        # Get latest scan results if available
+        scans = audit_db.get_scans(project, limit=1)
+        scan_findings = None
+        if scans:
+            scan_findings = audit_db.get_scan_findings(scans[0]['id'])
+
+        context = ai_chat.build_context(df, settings, scan_findings, dashboard_state)
+
+        # Get conversation history
+        history = audit_db.get_history(project, limit=10)
+
+        # Call GPT-5.2 Pro
+        result = ai_chat.chat(message, context, history)
+
+        # Save assistant response
+        audit_db.save_message(
+            project, 'assistant', result['message'],
+            actions=result.get('actions'),
+            risks=result.get('risks'),
+            source='ai',
+            tokens=result.get('tokens_used', 0)
+        )
+
+        result['success'] = True
+        return jsonify({'success': True, 'response': result})
+
+    except Exception as e:
+        log.error("chat failed: %s", e)
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/generate-report', methods=['POST'])
+def generate_report():
+    """Generate AI risk assessment report from latest scan results."""
+    config = load_config()
+    project = config.get('current_project')
+    if not project:
+        return jsonify({'success': False, 'error': 'No active project'})
+    try:
+        if not ai_chat.is_available():
+            return jsonify({'success': False, 'error': 'AI not configured. Add OPENAI_API_KEY to .env file.'})
+
+        df = get_cached_dataframe(project)
+        if df is None or len(df) == 0:
+            return jsonify({'success': False, 'error': 'No data in project'})
+
+        settings = load_project_settings(project)
+        settings['_project_name'] = project
+
+        # Run fresh scan or use latest
+        scans = audit_db.get_scans(project, limit=1)
+        if scans:
+            scan_findings = audit_db.get_scan_findings(scans[0]['id'])
+            scan_results = {'findings': scan_findings, 'summary': scans[0]}
+        else:
+            scan_results = run_all_checks(df, settings)
+            audit_db.save_scan(project, scan_results)
+
+        result = ai_chat.generate_report(df, settings, scan_results)
+
+        # Save report as chat message
+        audit_db.save_message(project, 'assistant', result['report'], source='ai',
+                              tokens=result.get('tokens_used', 0))
+
+        return jsonify({'success': True, 'report': result['report'],
+                        'tokens_used': result.get('tokens_used', 0)})
+    except Exception as e:
+        log.error("report generation failed: %s", e)
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/chat/history')
+def chat_history():
+    """Load chat history for current project."""
+    config = load_config()
+    project = config.get('current_project')
+    if not project:
+        return jsonify({'success': False, 'error': 'No active project'})
+    try:
+        limit = request.args.get('limit', 50, type=int)
+        messages = audit_db.get_history(project, limit)
+        total_tokens = audit_db.get_token_usage(project)
+        return jsonify({'success': True, 'messages': messages, 'total_tokens': total_tokens})
+    except Exception as e:
+        log.error("chat history load failed: %s", e)
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/chat/history', methods=['DELETE'])
+def clear_chat_history():
+    """Clear chat history for current project."""
+    config = load_config()
+    project = config.get('current_project')
+    if not project:
+        return jsonify({'success': False, 'error': 'No active project'})
+    try:
+        audit_db.clear_history(project)
+        return jsonify({'success': True})
+    except Exception as e:
+        log.error("chat history clear failed: %s", e)
+        return jsonify({'success': False, 'error': str(e)})
 
 
 def start_server():

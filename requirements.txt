@@ -5,3 +5,4 @@ werkzeug==3.0.1
 xlsxwriter
 python-calamine
 gunicorn
+openai>=1.0.0

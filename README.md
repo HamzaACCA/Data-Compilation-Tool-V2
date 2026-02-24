@@ -3,7 +3,7 @@
 A desktop + web application to automatically combine monthly Excel files with matching headers into a single consolidated file, with analytics dashboard.
 
 **Prepared by:** Hamza Yahya - Internal Audit
-**Version:** 3.5
+**Version:** 3.6
 
 ## Features
 
@@ -13,6 +13,9 @@ A desktop + web application to automatically combine monthly Excel files with ma
 - Dashboard with configurable Top 10 charts, Dual Trend Charts (COUNT + SUM), and PDF export
 - Dual Monthly Trend Charts with group-by column, always-visible COUNT and SUM, Top N selector, multi-select legend isolation
 - ECG/Medical Monitor theme with movement mode (deviation from baseline), neon styling, and trend-specific date range
+- **Audit Bot** — AI-powered chat panel with 39 dashboard commands, 9 audit checks (FREE), and GPT-5.2 AI analysis (optional)
+- **Risk Scanner** — duplicates, outliers, concentration, trend anomalies, missing data, Benford's Law, split transactions
+- **AI Risk Reports** — structured risk assessment reports with PDF/text download
 - Date range filtering and period comparison
 - Dark mode, keyboard shortcuts, audit log
 - Streaming CSV and in-memory Excel downloads (no temp files)
@@ -88,6 +91,7 @@ werkzeug==3.0.1
 pywebview==4.4.1
 xlsxwriter
 python-calamine
+openai>=1.0.0
 ```
 
 ## Environment Setup
@@ -96,7 +100,10 @@ Create a `.env` file in the project root (already git-ignored):
 
 ```
 GITHUB_TOKEN=your_github_token_here
+OPENAI_API_KEY=your_openai_api_key_here
 ```
+
+`OPENAI_API_KEY` is optional — without it, all local features (39 commands, 9 audit checks) still work. AI chat and reports require a valid key.
 
 ## Project Structure
 
@@ -104,13 +111,17 @@ GITHUB_TOKEN=your_github_token_here
 Data Compilation V3/
 ├── launcher.py              # Main application (Flask + PyWebView)
 ├── utils/
-│   └── logging.py           # Logging utility (colored console + rotating file)
+│   ├── logging.py           # Logging utility (colored console + rotating file)
+│   ├── audit_checks.py      # 9 pandas-based audit checks
+│   ├── ai_chat.py           # OpenAI GPT-5.2 client + report generator
+│   └── db.py                # SQLite persistence for chat/scans
 ├── templates/
 │   ├── index.html           # Upload page
-│   └── dashboard.html       # Dashboard page
+│   └── dashboard.html       # Dashboard page + Audit Bot chat panel
 ├── data_compilation.spec    # PyInstaller config
 ├── installer_config.iss     # Inno Setup config
 ├── requirements.txt         # Python dependencies
+├── RAG_AUDIT_BOT_PLAN.md    # Audit Bot implementation plan
 ├── .env                     # Environment variables (git-ignored)
 ├── .gitignore               # Git ignore rules
 ├── CLAUDE.md                # Developer documentation
@@ -130,6 +141,14 @@ Data Compilation V3/
 | Stale data after deleting upload | Refresh the page — cache is auto-cleared on mutations |
 
 ## Changelog
+
+### V3.6 (25-Feb-2026)
+- **Audit Bot** — AI-powered chat panel with 39 natural language dashboard commands (FREE local parser)
+- **9 Audit Checks** — duplicates, outliers, concentration, trend anomalies, missing data, round numbers, weekend activity, Benford's Law, split transactions (all FREE, 100% data coverage)
+- **GPT-5.2 AI Integration** — unmatched commands route to OpenAI for risk analysis and dashboard action proposals
+- **Risk Report Generator** — structured AI risk assessment report with PDF/text download
+- **Smart Hybrid Commands** — multi-step commands, smart column name matching, context-aware suggestions
+- **SQLite Persistence** — chat history, risk scans, and token usage stored per project
 
 ### V3.5 (24-Feb-2026)
 - **Dual Trend Charts** — COUNT and SUM charts always visible side by side with shared controls

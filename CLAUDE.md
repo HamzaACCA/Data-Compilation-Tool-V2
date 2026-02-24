@@ -60,8 +60,17 @@ A smart analytical tool with multi-project support that automatically consolidat
 33. **Column Analysis Excel Download** - Download button exports all column stats (2-sheet workbook: Column Analysis + Summary)
 34. **Auto Date Range** - Filter dates auto-populate with earliest and latest dates from data
 
+### Audit Bot (AI-Powered)
+41. **Chat Panel** - Slide-out chat panel on dashboard with natural language command parser (39 dashboard actions)
+42. **9 Audit Checks** - Duplicates, outliers, concentration, trend anomalies, missing data, round numbers, weekend activity, Benford's Law, split transactions — all run locally via pandas (FREE)
+43. **AI Interpreter** - GPT-5.2 via OpenAI API for interpreting findings, answering questions, and proposing dashboard actions (PAID per query)
+44. **Risk Report Generator** - AI-generated structured risk assessment report with PDF/text download
+45. **Smart Hybrid Commands** - Multi-step commands ("filter jan 2025 to jun 2025, then risk scan"), smart column name matching (display names + partial match)
+46. **Chat Persistence** - SQLite database stores chat history, risk scans, findings, and token usage per project
+47. **Confirm Before Execute** - Bot proposes actions, user clicks [Apply] to execute
+
 ### Performance
-41. **Fast Excel Reader** - python-calamine (Rust-based) replaces openpyxl for ~10x faster uploads
+48. **Fast Excel Reader** - python-calamine (Rust-based) replaces openpyxl for ~10x faster uploads
 42. **Fast Excel Writer** - Raw XML generation bypasses xlsxwriter overhead for ~3x faster Excel generation, with datetime formatting (dd-MMM-YYYY) and multi-sheet support
 43. **Lazy Excel Cache** - Excel file generated on download only, not on every upload
 44. **Streaming CSV Downloads** - CSV downloads use in-memory `BytesIO` streaming (no temp files on disk)
@@ -82,6 +91,8 @@ A smart analytical tool with multi-project support that automatically consolidat
 
 - **Backend:** Python 3.13, Flask 3.0.0
 - **Data Processing:** Pandas 2.1.4, python-calamine (fast read), openpyxl 3.1.2 (fallback), xlsxwriter (fast write)
+- **AI:** OpenAI GPT-5.2 (optional, per-query pricing)
+- **Database:** SQLite (audit bot chat history, risk scans)
 - **Desktop Window:** PyWebView 4.4.1
 - **Packaging:** PyInstaller 6.x
 - **Installer:** Inno Setup 6.x
@@ -91,24 +102,32 @@ A smart analytical tool with multi-project support that automatically consolidat
 ```
 Data Compilation V3/
 ├── launcher.py              # Main application (Flask + PyWebView)
+├── utils/
+│   ├── __init__.py          # Package init
+│   ├── logging.py           # Logging utility (colored console + rotating file)
+│   ├── audit_checks.py      # 9 pandas-based audit checks (100% data scan)
+│   ├── ai_chat.py           # OpenAI GPT-5.2 client, prompt builder, report generator
+│   └── db.py                # SQLite connection helper, CRUD for chat/scans
 ├── templates/
 │   ├── index.html           # Upload page with all features
-│   └── dashboard.html       # Dashboard with charts and analytics
+│   └── dashboard.html       # Dashboard with charts, analytics, and chat panel
 ├── data_compilation.spec    # PyInstaller build config
 ├── installer_config.iss     # Inno Setup installer config
 ├── requirements.txt         # Python dependencies
+├── RAG_AUDIT_BOT_PLAN.md    # Audit Bot implementation plan
 ├── Procfile                 # Web deployment (Gunicorn)
 ├── render.yaml              # Render deployment config
 ├── BUILD_INSTALLER.bat      # Main build script
 ├── CLEAN_OLD_BUILD.bat      # Cleanup script
 ├── FIX_AND_BUILD.bat        # Quick build script
-├── .env                     # Environment variables (GITHUB_TOKEN) - git-ignored
+├── .env                     # Environment variables (GITHUB_TOKEN, OPENAI_API_KEY) - git-ignored
 ├── .gitignore               # Git ignore rules
 ├── CLAUDE.md                # Developer documentation (this file)
 ├── README.md                # User documentation
 ├── USER_GUIDE.txt           # End-user guide
 └── Data/                    # Data storage folder
     ├── config.json          # Global configuration
+    ├── audit_bot.db         # SQLite database (chat history, risk scans)
     └── Projects/            # Project folders
         └── <project_name>/
             ├── uploads/              # Uploaded files
@@ -164,6 +183,15 @@ Data Compilation V3/
 | `/api/download-advanced-analysis` | GET | Download advanced analysis as Excel (3-sheet: Summary + Comparison + Data) |
 | `/api/trend-line-data` | GET | Get monthly trend line data (supports `group_column`, `value_column`, `agg_method`, `top_n`, `specific_groups`, `baseline_month`, `trend_start_date`, `trend_end_date` params; returns `movement_series` when baseline valid) |
 | `/api/download-trend-line` | GET | Download trend line data as Excel (2-sheet without baseline; 3-sheet with baseline: Summary + Raw Data + Movement Data) |
+
+### Audit Bot
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/chat` | POST | Send message — local save (`source=local`) or route to GPT-5.2 (`source=ai`) |
+| `/api/chat/history` | GET | Load chat history for current project from SQLite |
+| `/api/chat/history` | DELETE | Clear chat history for current project |
+| `/api/risk-scan` | GET | Run all 9 audit checks on 100% data, store results in SQLite |
+| `/api/generate-report` | POST | Generate AI risk assessment report from latest scan results |
 
 ### Data Management
 | Endpoint | Method | Description |
@@ -489,9 +517,11 @@ Store secrets in `.env` (git-ignored):
 
 ```
 GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 The `.env` file is listed in `.gitignore` and will never be committed.
+`OPENAI_API_KEY` is optional — if not set, AI chat/reports are disabled but all local features (39 commands, 9 audit checks) still work.
 
 ## Changelog
 
@@ -591,6 +621,6 @@ A full architectural rewrite is planned. See **[V4_ARCHITECTURE_PLAN.md](V4_ARCH
 
 ---
 
-**Version:** 3.5
-**Last Updated:** 24-Feb-2026
+**Version:** 3.6
+**Last Updated:** 25-Feb-2026
 **Developer:** Hamza Yahya - Internal Audit
