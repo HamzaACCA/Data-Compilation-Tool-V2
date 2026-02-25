@@ -59,6 +59,7 @@ RULES:
 - If no actions are needed, return empty "actions" array
 - If no risks to report, return empty "risks" array
 - Keep messages concise and actionable
+- Use markdown formatting in the "message" field for readability: **bold** for key terms, ## for section headings, - for bullet lists, numbered lists for steps. Structure your response with clear paragraphs.
 """
 
 REPORT_PROMPT = """Based on the audit scan results provided, write a structured Risk Assessment Report.

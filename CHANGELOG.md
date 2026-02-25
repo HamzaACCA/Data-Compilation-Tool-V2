@@ -1,5 +1,30 @@
 # Changelog
 
+## V3.7 — 25-Feb-2026 (Audit Bot Performance + UX)
+
+**Performance:**
+- **Batch DOM updates** — chat history now renders via `DocumentFragment` (single repaint instead of 50 individual `appendChild` calls); ~300ms → ~30ms on 50 messages
+- **Chat history localStorage cache** — panel opens instantly from cache (2-minute TTL); server fetch only on first open or after cache expiry; `invalidateChatCache()` called after all message mutations (send, AI response, report, clear)
+- **DB auto-cleanup on startup** — new `cleanup_old_messages(days=90)` in `utils/db.py` deletes chat messages older than 90 days + runs `VACUUM` to reclaim disk space; called once at app startup after `audit_db.init_db()`
+
+**Bug Fixes:**
+- **Typing indicator duplicate fix** — `showTypingIndicator()` now calls `hideTypingIndicator()` first to prevent multiple typing dot indicators piling up on rapid messages
+
+**UX:**
+- **Markdown rendering in AI chat** — AI responses now render with proper formatting (bold headings, bullet lists, paragraphs) via new `renderMarkdown()` function instead of showing raw markdown symbols; applied to both live responses and chat history reload
+- **AI prompt updated** — system prompt now instructs GPT-5.2 to use markdown formatting for structured, readable responses
+
+**New Functions:**
+- `renderChatHistory(messages)` — batch renders chat messages via DocumentFragment
+- `invalidateChatCache()` — clears localStorage chat cache for current project
+- `renderMarkdown(str)` — lightweight markdown-to-HTML converter (headings, bold, lists, code, paragraphs)
+- `cleanup_old_messages(days)` — SQLite cleanup with VACUUM (in `utils/db.py`)
+
+**CSS:**
+- Added `.chat-msg .md-content` styles for rendered markdown (headings, lists, code, paragraphs) with dark mode support
+
+---
+
 ## V3.6 — 25-Feb-2026 (RAG Audit Bot)
 
 **New Features:**

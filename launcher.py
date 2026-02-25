@@ -70,6 +70,12 @@ os.makedirs(APP_DIR, exist_ok=True)
 setup_logging(APP_DIR)
 log = get_logger(__name__)
 audit_db.init_db(APP_DIR)
+try:
+    deleted = audit_db.cleanup_old_messages(90)
+    if deleted:
+        log.info("Cleaned up %d old chat messages (>90 days)", deleted)
+except Exception:
+    pass
 ai_chat.init_client()
 
 PROJECTS_DIR = os.path.join(APP_DIR, 'Projects')

@@ -912,6 +912,15 @@
         .chat-msg .msg-source {
             font-size: 0.62em; opacity: 0.5; font-style: italic;
         }
+        .chat-msg .md-content h2, .chat-msg .md-content h3 { font-size: 1em; font-weight: 700; margin: 8px 0 4px; }
+        .chat-msg .md-content h2 { font-size: 1.05em; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 3px; }
+        .chat-msg .md-content p { margin: 4px 0; }
+        .chat-msg .md-content ul, .chat-msg .md-content ol { margin: 4px 0 4px 18px; padding: 0; }
+        .chat-msg .md-content li { margin: 2px 0; }
+        .chat-msg .md-content strong { font-weight: 700; }
+        .chat-msg .md-content code { background: rgba(0,0,0,0.06); padding: 1px 5px; border-radius: 3px; font-size: 0.9em; }
+        body.dark-mode .chat-msg .md-content h2 { border-bottom-color: rgba(255,255,255,0.1); }
+        body.dark-mode .chat-msg .md-content code { background: rgba(255,255,255,0.1); }
 
         /* Risk badges */
         .risk-badge {
@@ -3405,30 +3414,85 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ role, message: content, actions, risks, source })
                 });
+                invalidateChatCache();
             } catch (e) { console.error('Chat save error:', e); }
         }
 
         async function loadChatHistory() {
             try {
+                // Check localStorage cache first (2-minute TTL)
+                const cacheKey = 'chat_cache_' + currentProject;
+                const cached = localStorage.getItem(cacheKey);
+                const cacheTs = localStorage.getItem(cacheKey + '_ts');
+                if (cached && cacheTs && (Date.now() - parseInt(cacheTs)) < 120000) {
+                    try {
+                        const cData = JSON.parse(cached);
+                        renderChatHistory(cData.messages);
+                        if (cData.total_tokens !== undefined) {
+                            document.getElementById('chatTokenBadge').textContent = cData.total_tokens.toLocaleString() + ' tokens';
+                        }
+                        return;
+                    } catch (_) { /* fall through to fetch */ }
+                }
+
                 const resp = await fetch('/api/chat/history');
                 const data = await resp.json();
                 if (!data.success) return;
-                const container = document.getElementById('chatMessages');
-                // Keep the welcome message (first child)
-                const welcome = container.firstElementChild;
-                container.innerHTML = '';
-                if (welcome) container.appendChild(welcome);
-                data.messages.forEach(msg => {
-                    appendChatBubble(msg.role, msg.content, msg.source, msg.created_at, false);
-                    if (msg.risks && msg.risks.length) {
-                        appendRiskFindings(msg.risks);
-                    }
-                });
+
+                // Cache in localStorage
+                try {
+                    localStorage.setItem(cacheKey, JSON.stringify(data));
+                    localStorage.setItem(cacheKey + '_ts', String(Date.now()));
+                } catch (_) { /* storage full — ignore */ }
+
+                renderChatHistory(data.messages);
                 if (data.total_tokens !== undefined) {
                     document.getElementById('chatTokenBadge').textContent = data.total_tokens.toLocaleString() + ' tokens';
                 }
-                scrollChatBottom();
             } catch (e) { console.error('Chat history load error:', e); }
+        }
+
+        function renderChatHistory(messages) {
+            const container = document.getElementById('chatMessages');
+            const welcome = container.firstElementChild;
+            container.innerHTML = '';
+            if (welcome) container.appendChild(welcome);
+
+            // Batch DOM writes via DocumentFragment (single repaint)
+            const fragment = document.createDocumentFragment();
+            messages.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = `chat-msg ${msg.role}`;
+                const timeStr = msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+                let srcLabel = msg.source === 'ai' ? ' <span class="msg-source">AI</span>' : '';
+                const rendered = (msg.role === 'assistant' && msg.source === 'ai') ? renderMarkdown(msg.content) : escapeHtml(msg.content);
+                div.innerHTML = `<div>${rendered}</div><span class="msg-time">${timeStr}${srcLabel}</span>`;
+                fragment.appendChild(div);
+
+                if (msg.risks && msg.risks.length) {
+                    const rDiv = document.createElement('div');
+                    rDiv.className = 'chat-msg assistant';
+                    let html = '';
+                    const items = Array.isArray(msg.risks) ? msg.risks : [];
+                    items.forEach(f => {
+                        html += `<div class="finding-item ${f.level}">
+                            <div class="finding-title"><span class="risk-badge ${f.level}">${f.level.toUpperCase()}</span> ${escapeHtml(f.title)}</div>
+                            <div class="finding-detail">${escapeHtml(f.detail || '')}</div>
+                        </div>`;
+                    });
+                    rDiv.innerHTML = html;
+                    fragment.appendChild(rDiv);
+                }
+            });
+            container.appendChild(fragment);
+            scrollChatBottom();
+        }
+
+        function invalidateChatCache() {
+            try {
+                localStorage.removeItem('chat_cache_' + currentProject);
+                localStorage.removeItem('chat_cache_' + currentProject + '_ts');
+            } catch (_) {}
         }
 
         async function clearChatHistory() {
@@ -3441,6 +3505,7 @@
                 if (welcome) container.appendChild(welcome.cloneNode(true));
                 document.getElementById('chatTokenBadge').textContent = '0 tokens';
                 chatHistoryLoaded = false;
+                invalidateChatCache();
             } catch (e) { console.error('Chat clear error:', e); }
         }
 
@@ -3451,7 +3516,8 @@
             const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
             let srcLabel = '';
             if (source === 'ai') srcLabel = ' <span class="msg-source">AI</span>';
-            div.innerHTML = `<div>${escapeHtml(content)}</div><span class="msg-time">${timeStr}${srcLabel}</span>`;
+            const rendered = (role === 'assistant' && source === 'ai') ? renderMarkdown(content) : escapeHtml(content);
+            div.innerHTML = `<div>${rendered}</div><span class="msg-time">${timeStr}${srcLabel}</span>`;
             container.appendChild(div);
             scrollChatBottom();
             if (save !== false) {
@@ -3523,6 +3589,38 @@
             return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\n/g,'<br>');
         }
 
+        function renderMarkdown(str) {
+            if (!str) return '';
+            // Escape HTML first for safety
+            let html = str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+            // Headings: ## and ###
+            html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+            html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+            // Bold: **text**
+            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            // Inline code: `text`
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+            // Unordered lists: lines starting with - or *
+            html = html.replace(/^(?:- |\* )(.+)$/gm, '<li>$1</li>');
+            // Ordered lists: lines starting with 1. 2. etc
+            html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+            // Wrap consecutive <li> in <ul>
+            html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+            // Paragraphs: double newlines
+            html = html.replace(/\n\n+/g, '</p><p>');
+            // Single newlines (outside of lists/headings)
+            html = html.replace(/([^>])\n([^<])/g, '$1<br>$2');
+            // Wrap in paragraph
+            html = '<p>' + html + '</p>';
+            // Clean up empty paragraphs
+            html = html.replace(/<p>\s*<\/p>/g, '');
+            html = html.replace(/<p>\s*(<h[23]>)/g, '$1');
+            html = html.replace(/(<\/h[23]>)\s*<\/p>/g, '$1');
+            html = html.replace(/<p>\s*(<ul>)/g, '$1');
+            html = html.replace(/(<\/ul>)\s*<\/p>/g, '$1');
+            return '<div class="md-content">' + html + '</div>';
+        }
+
         // ── Send message flow ────────────────────────────────────────────────
 
         async function sendChatMessage() {
@@ -3585,6 +3683,7 @@
         // ── Phase 4: AI Chat ────────────────────────────────────────────────
 
         function showTypingIndicator() {
+            hideTypingIndicator(); // Remove existing indicator first
             const container = document.getElementById('chatMessages');
             const div = document.createElement('div');
             div.className = 'chat-typing';
@@ -3670,6 +3769,7 @@
                 appendChatBubble('assistant', 'AI connection error: ' + e.message, 'local');
             } finally {
                 sendBtn.disabled = false;
+                invalidateChatCache();
             }
         }
 
@@ -3738,6 +3838,7 @@
                 appendChatBubble('assistant', 'Report error: ' + e.message, 'local');
             } finally {
                 sendBtn.disabled = false;
+                invalidateChatCache();
             }
         }
 

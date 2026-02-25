@@ -66,7 +66,7 @@ A smart analytical tool with multi-project support that automatically consolidat
 43. **AI Interpreter** - GPT-5.2 via OpenAI API for interpreting findings, answering questions, and proposing dashboard actions (PAID per query)
 44. **Risk Report Generator** - AI-generated structured risk assessment report with PDF/text download
 45. **Smart Hybrid Commands** - Multi-step commands ("filter jan 2025 to jun 2025, then risk scan"), smart column name matching (display names + partial match)
-46. **Chat Persistence** - SQLite database stores chat history, risk scans, findings, and token usage per project
+46. **Chat Persistence** - SQLite database stores chat history, risk scans, findings, and token usage per project; localStorage cache (2-min TTL) for instant panel re-open; auto-cleanup of messages >90 days on startup
 47. **Confirm Before Execute** - Bot proposes actions, user clicks [Apply] to execute
 
 ### Performance
@@ -621,6 +621,6 @@ A full architectural rewrite is planned. See **[V4_ARCHITECTURE_PLAN.md](V4_ARCH
 
 ---
 
-**Version:** 3.6
+**Version:** 3.7
 **Last Updated:** 25-Feb-2026
 **Developer:** Hamza Yahya - Internal Audit

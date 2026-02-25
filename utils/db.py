@@ -128,6 +128,23 @@ def clear_history(project):
     db.commit()
 
 
+def cleanup_old_messages(days=90):
+    """Delete chat messages older than N days to prevent DB bloat."""
+    db = get_db()
+    cur = db.execute(
+        "DELETE FROM chat_messages WHERE created_at < datetime('now', ?)",
+        (f'-{days} days',)
+    )
+    deleted = cur.rowcount
+    db.commit()
+    if deleted > 0:
+        try:
+            db.execute("VACUUM")
+        except Exception:
+            pass
+    return deleted
+
+
 def get_token_usage(project):
     """Get total tokens used for a project."""
     db = get_db()

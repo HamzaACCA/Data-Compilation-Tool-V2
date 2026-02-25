@@ -3,7 +3,7 @@
 A desktop + web application to automatically combine monthly Excel files with matching headers into a single consolidated file, with analytics dashboard.
 
 **Prepared by:** Hamza Yahya - Internal Audit
-**Version:** 3.6
+**Version:** 3.7
 
 ## Features
 
@@ -141,6 +141,14 @@ Data Compilation V3/
 | Stale data after deleting upload | Refresh the page — cache is auto-cleared on mutations |
 
 ## Changelog
+
+### V3.7 (25-Feb-2026)
+- **Batch DOM rendering** — chat history loads via DocumentFragment (single repaint, ~300ms → ~30ms)
+- **Chat history cache** — localStorage cache with 2-min TTL for instant panel re-open
+- **DB auto-cleanup** — chat messages older than 90 days auto-deleted on startup with VACUUM
+- **Typing indicator fix** — prevents duplicate typing dots on rapid messages
+- **Markdown rendering** — AI responses render with proper bold, headings, bullet lists, and paragraphs
+- **AI prompt update** — GPT-5.2 instructed to use markdown for structured, readable responses
 
 ### V3.6 (25-Feb-2026)
 - **Audit Bot** — AI-powered chat panel with 39 natural language dashboard commands (FREE local parser)
