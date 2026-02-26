@@ -13,7 +13,6 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from werkzeug.utils import secure_filename
-from functools import lru_cache
 import xlsxwriter
 import zipfile
 from xml.sax.saxutils import escape as _xml_escape
@@ -554,7 +553,7 @@ def generate_excel_cache(project_name):
             df = pd.read_pickle(files['pickle'])
             export_df = df[[c for c in df.columns if c != '_upload_id']]
             _write_excel_fast(export_df, files['excel'])
-    except:
+    except Exception:
         pass  # Silently fail - Excel will be generated on demand if needed
 
 
@@ -1546,7 +1545,7 @@ def download_comparison():
             """Format YYYY-MM-DD to DD-MMM-YYYY"""
             try:
                 return pd.to_datetime(d).strftime('%d-%b-%Y')
-            except:
+            except Exception:
                 return d
 
         p1_label = f'Period 1 ({_fmt_date(start1)} to {_fmt_date(end1)})'
@@ -1719,7 +1718,7 @@ def download_advanced_analysis():
         def _fmt_date(d):
             try:
                 return pd.to_datetime(d).strftime('%d-%b-%Y')
-            except:
+            except Exception:
                 return d
 
         p1_label = f'Period 1 ({_fmt_date(start1)} to {_fmt_date(end1)})'
@@ -2206,7 +2205,7 @@ def download_trend_line():
         def _fmt(d):
             try:
                 return pd.to_datetime(d).strftime('%d%b%Y')
-            except:
+            except Exception:
                 return d
 
         return send_file(
@@ -2699,7 +2698,7 @@ def wait_for_server(timeout=30):
         try:
             urllib.request.urlopen('http://127.0.0.1:5000/stats', timeout=1)
             return True
-        except:
+        except Exception:
             time.sleep(0.2)
     return False
 
@@ -2734,7 +2733,7 @@ if __name__ == '__main__':
                 # Move window to center of screen
                 try:
                     webview_window.move(100, 50)
-                except:
+                except Exception:
                     pass
             else:
                 webview_window.load_html('<h1>Error: Failed to start server</h1>')
