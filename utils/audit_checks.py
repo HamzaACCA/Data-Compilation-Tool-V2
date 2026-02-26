@@ -4,7 +4,6 @@ Zero token cost. Each check returns a list of finding dicts.
 """
 import pandas as pd
 import numpy as np
-from collections import Counter
 
 
 def check_duplicates(df, key_cols=None):
@@ -376,7 +375,6 @@ def check_split_transactions(df, date_col, vendor_col=None, amount_col=None):
             continue
 
         total = group[amount_col].sum()
-        max_val = group[amount_col].max()
 
         for threshold in thresholds:
             # All individual amounts below threshold but total exceeds it
@@ -405,7 +403,7 @@ def check_split_transactions(df, date_col, vendor_col=None, amount_col=None):
             'check_type': 'split_transaction',
             'level': level,
             'title': f'{len(evidence)} potential split transactions detected',
-            'detail': f'Same-day transactions by the same party with individual amounts below approval thresholds but combined total exceeding them.',
+            'detail': 'Same-day transactions by the same party with individual amounts below approval thresholds but combined total exceeding them.',
             'evidence': evidence[:15],
             'stats': {'groups_flagged': len(evidence)}
         })
